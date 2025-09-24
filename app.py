@@ -14,8 +14,8 @@ if current_dir not in sys.path:
 
 from carbon_simulator import CarbonCreditSimulator
 
-# PDF Generator
-def generate_pdf_report(area_ha, species_mix, final_credits):
+# PDF Generator (updated for soil carbon)
+def generate_pdf_report(area_ha, species_mix, final_credits, soil_credits=0):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -26,7 +26,11 @@ def generate_pdf_report(area_ha, species_mix, final_credits):
     pdf.set_font("Arial", "", 12)
     pdf.cell(0, 10, f"Date: {datetime.now().strftime('%Y-%m-%d')}", ln=True)
     pdf.cell(0, 10, f"Project Area: {area_ha} hectares", ln=True)
-    pdf.cell(0, 10, f"Estimated Net Carbon Credits (40 years): {final_credits:,.0f} tonnes CO₂e", ln=True)
+    
+    total_credits = final_credits + soil_credits
+    pdf.cell(0, 10, f"Estimated Net Carbon Credits (40 years): {total_credits:,.0f} tonnes CO₂e", ln=True)
+    pdf.cell(0, 8, f"  - Biomass: {final_credits:,.0f} tonnes CO₂e", ln=True)
+    pdf.cell(0, 8, f"  - Soil: {soil_credits:,.0f} tonnes CO₂e", ln=True)
     pdf.ln(10)
     
     pdf.set_font("Arial", "B", 14)
@@ -60,7 +64,6 @@ except Exception as e:
 species_by_region = {}
 for region in species_df['region'].dropna().unique():
     region_df = species_df[species_df['region'] == region]
-    # Create display names: "Common Name (Scientific Name)"
     display_names = []
     for _, row in region_df.iterrows():
         common = row['common_name'] if pd.notna(row['common_name']) else row['species_name']
@@ -160,9 +163,9 @@ if total_pct != 100:
 
 # Calculate button
 if st.sidebar.button("Calculate Carbon Credits") and total_pct == 100:
-    with st.spinner("Simulating 40-year growth..."):
+    with st.spinner("Simulating 40-year growth (biomass + soil)..."):
         try:
-            # Parse display names to extract scientific names and common names
+            # Parse display names
             species_mix = []
             for spec in st.session_state.species_list:
                 if spec["pct"] > 0:
@@ -190,12 +193,19 @@ if st.sidebar.button("Calculate Carbon Credits") and total_pct == 100:
                 annual_mortality=mortality
             )
             final = results[-1]
-            st.success(f"✅ Estimated Net Carbon Credits: **{final['co2e_net_t']:,.0f} tonnes CO₂e**")
+            
+            # Extract biomass and soil credits
+            biomass_credits = final['co2e_net_t'] - final.get('soil_co2e_t', 0)
+            soil_credits = final.get('soil_co2e_t', 0) * len(results)  # Total soil
+            total_credits = biomass_credits + soil_credits
+            
+            st.success(f"✅ Estimated Net Carbon Credits: **{total_credits:,.0f} tonnes CO₂e**")
+            st.caption(f"🌳 Biomass: {biomass_credits:,.0f} | 🌱 Soil: {soil_credits:,.0f}")
             
             # Chart
             years = [r['year'] for r in results]
-            credits = [r['co2e_net_t'] for r in results]
-            chart_data = {"Year": years, "Net CO₂e (tonnes)": credits}
+            total_credits_yearly = [r['co2e_net_t'] for r in results]
+            chart_data = {"Year": years, "Net CO₂e (tonnes)": total_credits_yearly}
             st.line_chart(chart_data, x="Year", y="Net CO₂e (tonnes)")
             
             # Species mix table
@@ -211,7 +221,7 @@ if st.sidebar.button("Calculate Carbon Credits") and total_pct == 100:
             st.table(mix_df)
             
             # PDF Download
-            pdf_bytes = generate_pdf_report(area_ha, species_mix, final['co2e_net_t'])
+            pdf_bytes = generate_pdf_report(area_ha, species_mix, biomass_credits, soil_credits)
             st.download_button(
                 label="📥 Download PDF Report",
                 data=pdf_bytes,

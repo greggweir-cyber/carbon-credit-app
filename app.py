@@ -16,11 +16,14 @@ from carbon_simulator import CarbonCreditSimulator
 
 # PDF Generator (updated for soil carbon)
 def generate_pdf_report(area_ha, species_mix, final_credits, soil_credits=0):
+    from fpdf import FPDF
     pdf = FPDF()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
+    
+    # Use core font (Arial) - works everywhere
     pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, "🌍 Carbon Credit Estimation Report", ln=True, align="C")
+    pdf.cell(0, 10, "Carbon Credit Estimation Report", ln=True, align="C")
     pdf.ln(10)
     
     pdf.set_font("Arial", "", 12)
@@ -28,9 +31,9 @@ def generate_pdf_report(area_ha, species_mix, final_credits, soil_credits=0):
     pdf.cell(0, 10, f"Project Area: {area_ha} hectares", ln=True)
     
     total_credits = final_credits + soil_credits
-    pdf.cell(0, 10, f"Estimated Net Carbon Credits (40 years): {total_credits:,.0f} tonnes CO₂e", ln=True)
-    pdf.cell(0, 8, f"  - Biomass: {final_credits:,.0f} tonnes CO₂e", ln=True)
-    pdf.cell(0, 8, f"  - Soil: {soil_credits:,.0f} tonnes CO₂e", ln=True)
+    pdf.cell(0, 10, f"Estimated Net Carbon Credits (40 years): {total_credits:,.0f} tonnes CO2e", ln=True)
+    pdf.cell(0, 8, f"  - Biomass: {final_credits:,.0f} tonnes CO2e", ln=True)
+    pdf.cell(0, 8, f"  - Soil: {soil_credits:,.0f} tonnes CO2e", ln=True)
     pdf.ln(10)
     
     pdf.set_font("Arial", "B", 14)

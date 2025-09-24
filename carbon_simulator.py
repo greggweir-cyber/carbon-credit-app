@@ -41,6 +41,21 @@ class CarbonCreditSimulator:
         agb = coeffs['a'] * (dbh_cm ** coeffs['b'])
         return max(agb, 0.01)  # Avoid zero
 
+    def estimate_soil_carbon(self, area_ha, region, project_years=40):
+        """Estimate additional soil carbon sequestration (tonnes CO2e) over project life."""
+        # IPCC 2019 default soil organic carbon stocks (tonnes C / ha)
+        soc_defaults = {
+            "tropical": 75,
+            "temperate": 100,
+            "boreal": 150
+        }
+        initial_soc_t = area_ha * soc_defaults.get(region, 75)
+        # Conservative 10% increase in SOC over 40 years (reforestation effect)
+        delta_soc_t = initial_soc_t * 0.10
+        # Convert to CO2e
+        soil_co2e_t = delta_soc_t * CO2E_FACTOR
+        return soil_co2e_t
+
     def simulate_project(
         self,
         area_ha,
@@ -58,7 +73,7 @@ class CarbonCreditSimulator:
 
         # Setup initial stand
         for mix in species_mix:
-            species = mix['species_name']  # ✅ FIXED: was 'species'
+            species = mix['species_name']
             region = mix['region']
             density = mix['density']
             pct = mix['pct'] / 100.0
@@ -87,7 +102,7 @@ class CarbonCreditSimulator:
                     data['dbh_cm'] = np.array([])
                     continue
 
-                # Keep largest trees
+                # Keep largest trees (simulate competition)
                 if len(data['dbh_cm']) > survivors:
                     data['dbh_cm'] = np.sort(data['dbh_cm'])[-survivors:]
                 data['count'] = survivors
@@ -114,7 +129,7 @@ class CarbonCreditSimulator:
                 )
                 total_biomass += agb_total * (1 + ROOT_SHOOT_RATIO)
 
-            # Carbon accounting
+            # Carbon accounting (biomass only)
             carbon_t = (total_biomass / 1000) * CARBON_FRACTION
             co2e_gross_t = carbon_t * CO2E_FACTOR
             co2e_net_t = co2e_gross_t * (1 - VERRA_BUFFER)
@@ -127,6 +142,17 @@ class CarbonCreditSimulator:
                 'co2e_gross_t': co2e_gross_t,
                 'co2e_net_t': co2e_net_t
             })
+
+        # Add soil carbon (distributed evenly over project life)
+        if species_mix:
+            region = species_mix[0]['region']  # Assume all species same region
+            soil_co2e_total = self.estimate_soil_carbon(area_ha, region, project_years)
+            soil_co2e_net = soil_co2e_total * (1 - VERRA_BUFFER)
+            annual_soil = soil_co2e_net / project_years
+
+            for yr in yearly_results:
+                yr['co2e_net_t'] += annual_soil
+                yr['soil_co2e_t'] = annual_soil
 
         return yearly_results
 

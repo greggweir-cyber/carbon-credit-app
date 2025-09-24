@@ -46,7 +46,7 @@ def generate_pdf_report(area_ha, species_mix, final_credits, soil_credits=0):
     pdf.set_font("Arial", "I", 10)
     pdf.cell(0, 10, "Note: This is a feasibility estimate. Actual carbon credits require validation per Verra VM0042.", ln=True)
     
-    return pdf.output(dest='S').encode('latin-1')
+    return pdf.output(dest='S')
 
 st.set_page_config(page_title="Carbon Credit Estimator", layout="wide")
 st.title("🌍 Reforestation Carbon Credit Estimator (40-Year Verra Compliant)")

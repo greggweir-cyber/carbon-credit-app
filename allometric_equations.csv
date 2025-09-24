@@ -1,9 +1,225 @@
-species_name,region,equation_type,a,b,c,wood_density
-Tectona grandis,tropical,AGB;dbh,0.0673,2.323,,0.65
-Acacia mearnsii,tropical,AGB;dbh,0.0509,2.397,,0.75
-Eucalyptus grandis,tropical,AGB;dbh,0.0812,2.287,,0.6
-Pinus sylvestris,temperate,AGB;dbh,0.0993,2.323,,0.45
-Quercus robur,temperate,AGB;dbh,0.0821,2.35,,0.67
-Fagus sylvatica,temperate,AGB;dbh,0.0754,2.38,,0.61
-Picea abies,boreal,AGB;dbh,0.0887,2.31,,0.45
-Betula pendula,boreal,AGB;dbh,0.0721,2.34,,0.6
+species_name,common_name,region,a,b,wood_density
+Abies alba,Silver Fir,temperate,0.0872,2.315,0.4
+Abies balsamea,Balsam Fir,boreal,0.0865,2.32,0.38
+Abies concolor,White Fir,temperate,0.0891,2.31,0.42
+Abies fraseri,Fraser Fir,temperate,0.088,2.318,0.39
+Abies grandis,Grand Fir,temperate,0.0902,2.305,0.41
+Abies lasiocarpa,Subalpine Fir,boreal,0.0855,2.325,0.37
+Abies nordmanniana,Caucasian Fir,temperate,0.0878,2.312,0.4
+Abies sibirica,Siberian Fir,boreal,0.0834,2.33,0.4
+Acacia auriculiformis,Earleaf Acacia,tropical,0.0521,2.385,0.65
+Acacia crassicarpa,Red Wattle,tropical,0.0515,2.39,0.7
+Acacia mangium,Mangium,tropical,0.053,2.38,0.6
+Acacia mearnsii,Black Wattle,tropical,0.0509,2.397,0.75
+Acacia melanoxylon,Blackwood,tropical,0.0525,2.388,0.68
+Adansonia digitata,Baobab,tropical,0.048,2.41,0.45
+Aextoxicon punctatum,Olivillo,temperate,0.076,2.375,0.7
+Agathis australis,Kauri,tropical,0.0705,2.355,0.55
+Albizia adianthifolia,Flat-crown,tropical,0.0495,2.4,0.5
+Albizia lebbeck,Lebbeck,tropical,0.05,2.395,0.55
+Alnus acuminata,Alder,temperate,0.074,2.365,0.45
+Alnus glutinosa,Black Alder,temperate,0.0735,2.37,0.42
+Alnus incana,Gray Alder,temperate,0.0725,2.375,0.4
+Alnus rubra,Red Alder,temperate,0.075,2.375,0.43
+Anadenanthera colubrina,Angico,tropical,0.0485,2.405,0.75
+Anogeissus leiocarpa,Chewstick,tropical,0.0475,2.415,0.8
+Araucaria angustifolia,Parana Pine,temperate,0.082,2.34,0.5
+Araucaria araucana,Monkey Puzzle,temperate,0.081,2.345,0.52
+Araucaria cunninghamii,Hoop Pine,tropical,0.079,2.35,0.55
+Araucaria heterophylla,Norfolk Island Pine,tropical,0.078,2.355,0.53
+Araucaria hunsteinii,Klinki Pine,tropical,0.0785,2.352,0.54
+Archidendron pauciflorum,Jengkol,tropical,0.049,2.402,0.65
+Artocarpus heterophyllus,Jackfruit,tropical,0.047,2.42,0.6
+Aspidosperma quebracho-blanco,White Quebracho,temperate,0.071,2.38,0.9
+Astronium graveolens,West Indian Elm,tropical,0.0465,2.425,0.7
+Avicennia marina,White Mangrove,tropical,0.045,2.435,0.75
+Azadirachta indica,Neem,tropical,0.051,2.392,0.65
+Balanites aegyptiaca,Desert Date,tropical,0.046,2.43,0.7
+Bauhinia variegata,Orchid Tree,tropical,0.048,2.41,0.6
+Betula alleghaniensis,Yellow Birch,temperate,0.073,2.372,0.65
+Betula lenta,Black Birch,temperate,0.072,2.378,0.62
+Betula nigra,River Birch,temperate,0.074,2.368,0.6
+Betula papyrifera,Paper Birch,boreal,0.071,2.385,0.6
+Betula pendula,Silver Birch,boreal,0.0721,2.34,0.6
+Bombax ceiba,Red Silk Cotton,tropical,0.044,2.445,0.35
+Brosimum alicastrum,Breadnut,tropical,0.0455,2.432,0.55
+Brownea macrophylla,Red Poui,tropical,0.047,2.42,0.7
+Buchenavia tetraphylla,Tropical Almond,tropical,0.046,2.43,0.65
+Bursera simaruba,Gumbo Limbo,tropical,0.045,2.435,0.5
+Caesalpinia echinata,Brazilwood,tropical,0.0445,2.44,0.85
+Calophyllum brasiliense,Santa Maria,tropical,0.0435,2.448,0.75
+Caryocar brasiliense,Pequi,tropical,0.0425,2.455,0.65
+Castanea dentata,American Chestnut,temperate,0.078,2.375,0.55
+Castanea sativa,Sweet Chestnut,temperate,0.0789,2.37,0.56
+Castanopsis fissa,Chinquapin,temperate,0.077,2.38,0.6
+Cedrela odorata,Spanish Cedar,tropical,0.043,2.45,0.45
+Ceiba pentandra,Kapok,tropical,0.042,2.46,0.3
+Celtis australis,European Nettle Tree,temperate,0.075,2.365,0.6
+Celtis occidentalis,Common Hackberry,temperate,0.0745,2.37,0.58
+Ceratonia siliqua,Carob,temperate,0.076,2.36,0.8
+Cinnamomum camphora,Camphor Tree,temperate,0.073,2.375,0.55
+Citharexylum spinosum,Fiddlewood,tropical,0.0465,2.425,0.7
+Clusia rosea,Scotch Attorney,tropical,0.0455,2.432,0.75
+Cordia alliodora,Laurel,tropical,0.044,2.445,0.5
+Cordia dichotoma,Grey Cordia,tropical,0.045,2.435,0.6
+Cordia myxa,Assyrian Plum,tropical,0.0445,2.44,0.55
+Corylus avellana,Hazelnut,temperate,0.072,2.385,0.6
+Cupressus lusitanica,Mexican Cypress,temperate,0.085,2.33,0.45
+Cupressus sempervirens,Italian Cypress,temperate,0.084,2.335,0.42
+Dalbergia latifolia,Indian Rosewood,tropical,0.042,2.46,0.85
+Dalbergia melanoxylon,African Blackwood,tropical,0.041,2.47,1
+Dalbergia sissoo,Indian Rosewood,tropical,0.0425,2.455,0.75
+Dipterocarpus alatus,Resin Tree,tropical,0.0742,2.33,0.62
+Dipterocarpus costatus,Resin Tree,tropical,0.0074,2.355,0.6
+Dipterocarpus grandiflorus,Keruing,tropical,0.073,2.34,0.58
+Dipterocarpus indicus,Resin Tree,tropical,0.0725,2.345,0.57
+Dipterocarpus turbinatus,Keruing,tropical,0.072,2.35,0.55
+Dipteryx odorata,Tonka Bean,tropical,0.0415,2.465,0.8
+Dombeya burgessiae,Wild Pear,tropical,0.0475,2.415,0.65
+Dracontomelon dao,Argus Pheasant Tree,tropical,0.043,2.45,0.55
+Dryobalanops aromatica,Camphor tree,tropical,0.071,2.355,0.65
+Elaeis guineensis,African Oil Palm,tropical,0.04,2.48,0.6
+Elaeocarpus angustifolius,Blue Marble Tree,tropical,0.044,2.445,0.65
+Enterolobium cyclocarpum,Ear Pod Tree,tropical,0.0435,2.448,0.55
+Erythrina poeppigiana,Mountain Immortelle,tropical,0.046,2.43,0.45
+Eucalyptus camaldulensis,River Red Gum,tropical,0.08,2.295,0.65
+Eucalyptus citriodora,Lemon-scented Gum,tropical,0.0805,2.29,0.62
+Eucalyptus deglupta,Rainbow Eucalyptus,tropical,0.0815,2.285,0.58
+Eucalyptus grandis,Flooded Gum,tropical,0.0812,2.287,0.6
+Eucalyptus robusta,Swamp Mahogany,tropical,0.0795,2.3,0.68
+Eucalyptus tereticornis,Forest Red Gum,tropical,0.08,2.295,0.65
+Eugenia uniflora,Surinam Cherry,tropical,0.047,2.42,0.7
+Fagus grandifolia,American Beech,temperate,0.075,2.38,0.61
+Fagus orientalis,Oriental Beech,temperate,0.0745,2.385,0.6
+Fagus sylvatica,European Beech,temperate,0.0754,2.38,0.61
+Fraxinus americana,White Ash,temperate,0.076,2.36,0.65
+Fraxinus excelsior,European Ash,temperate,0.0755,2.365,0.62
+Fraxinus pennsylvanica,Green Ash,temperate,0.075,2.37,0.6
+Gmelina arborea,Gmelina,tropical,0.054,2.37,0.5
+Grevillea robusta,Silky Oak,tropical,0.0535,2.375,0.55
+Guarea guidonia,West Indian Cedar,tropical,0.045,2.435,0.5
+Hymenaea courbaril,Jatoba,tropical,0.042,2.46,0.85
+Inga edulis,Ice Cream Bean,tropical,0.048,2.41,0.6
+Inga feuilleei,Inga,tropical,0.0475,2.415,0.58
+Jacaranda mimosifolia,Jacaranda,tropical,0.0465,2.425,0.5
+Juglans nigra,Black Walnut,temperate,0.077,2.37,0.6
+Juglans regia,English Walnut,temperate,0.0765,2.375,0.58
+Khaya anthotheca,African Mahogany,tropical,0.0715,2.345,0.6
+Khaya ivorensis,African Mahogany,tropical,0.071,2.35,0.62
+Khaya senegalensis,African Mahogany,tropical,0.0712,2.35,0.6
+Larix decidua,European Larch,boreal,0.086,2.32,0.55
+Larix kaempferi,Japanese Larch,boreal,0.0855,2.325,0.52
+Larix laricina,Tamarack,boreal,0.085,2.33,0.5
+Larix occidentalis,Western Larch,boreal,0.0865,2.315,0.58
+Larix sibirica,Siberian Larch,boreal,0.0856,2.32,0.52
+Liquidambar styraciflua,Sweetgum,temperate,0.074,2.37,0.55
+Lophira alata,Ekki,tropical,0.041,2.47,0.9
+Lovoa trichilioides,African Walnut,tropical,0.0425,2.455,0.65
+Maclura pomifera,Osage Orange,temperate,0.073,2.38,0.75
+Magnolia grandiflora,Southern Magnolia,temperate,0.072,2.385,0.55
+Mangifera indica,Mango,tropical,0.046,2.43,0.65
+Manilkara bidentata,Balata,tropical,0.04,2.48,0.9
+Manilkara huberi,Massaranduba,tropical,0.0395,2.485,0.95
+Manilkara zapota,Sapodilla,tropical,0.0405,2.475,0.85
+Milicia excelsa,Iroko,tropical,0.043,2.45,0.65
+Mimusops elengi,Bakul,tropical,0.045,2.435,0.75
+Moringa oleifera,Moringa,tropical,0.049,2.402,0.6
+Nauclea diderrichii,Bilinga,tropical,0.044,2.445,0.7
+Nephelium lappaceum,Rambutan,tropical,0.047,2.42,0.65
+Nothofagus alpina,Rauli,temperate,0.076,2.365,0.6
+Nothofagus antarctica,Nire,temperate,0.075,2.37,0.58
+Nothofagus betuloides,Magellan's Beech,temperate,0.0755,2.368,0.59
+Nothofagus dombeyi,Coihue,temperate,0.0765,2.36,0.62
+Nothofagus obliqua,Roble,temperate,0.077,2.355,0.65
+Ochroma pyramidale,Balsam Fir,tropical,0.04,2.48,0.15
+Ocotea catharinensis,Imbuia,temperate,0.074,2.375,0.7
+Olea europaea,Olive,temperate,0.078,2.36,0.8
+Parkia biglobosa,African Locust Bean,tropical,0.0455,2.432,0.65
+Parrotia persica,Persian Ironwood,temperate,0.077,2.365,0.8
+Paulownia tomentosa,Princess Tree,tropical,0.055,2.36,0.3
+Persea americana,Avocado,tropical,0.0465,2.425,0.6
+Persea borbonia,Red Bay,temperate,0.0735,2.375,0.55
+Picea abies,Norway Spruce,boreal,0.0887,2.31,0.45
+Picea glauca,White Spruce,boreal,0.088,2.315,0.42
+Picea mariana,Black Spruce,boreal,0.0875,2.32,0.4
+Picea pungens,Blue Spruce,boreal,0.089,2.305,0.48
+Picea sitchensis,Sitka Spruce,boreal,0.0895,2.3,0.45
+Pinus attenuata,Knobcone Pine,temperate,0.098,2.33,0.45
+Pinus banksiana,Jack Pine,boreal,0.097,2.335,0.42
+Pinus caribaea,Caribbean Pine,tropical,0.099,2.325,0.5
+Pinus contorta,Lodgepole Pine,boreal,0.0975,2.332,0.44
+Pinus echinata,Shortleaf Pine,temperate,0.0985,2.328,0.48
+Pinus elliottii,Slash Pine,temperate,0.099,2.325,0.5
+Pinus halepensis,Aleppo Pine,temperate,0.096,2.34,0.48
+Pinus koraiensis,Korean Pine,temperate,0.0965,2.338,0.45
+Pinus lambertiana,Sugar Pine,temperate,0.0995,2.32,0.38
+Pinus monticola,Western White Pine,temperate,0.098,2.33,0.4
+Pinus nigra,Austrian Pine,temperate,0.097,2.335,0.5
+Pinus palustris,Longleaf Pine,temperate,0.1,2.315,0.52
+Pinus patula,Patula Pine,tropical,0.0985,2.328,0.48
+Pinus pinaster,Maritime Pine,temperate,0.0975,2.332,0.52
+Pinus ponderosa,Ponderosa Pine,temperate,0.099,2.325,0.45
+Pinus radiata,Monterey Pine,temperate,0.0993,2.323,0.45
+Pinus resinosa,Red Pine,temperate,0.098,2.33,0.48
+Pinus rigida,Pitch Pine,temperate,0.0975,2.332,0.5
+Pinus strobus,Eastern White Pine,temperate,0.096,2.34,0.38
+Pinus sylvestris,Scots Pine,temperate,0.0993,2.323,0.45
+Pinus taeda,Loblolly Pine,temperate,0.0995,2.32,0.5
+Pinus wallichiana,Blue Pine,temperate,0.0965,2.338,0.42
+Platanus occidentalis,American Sycamore,temperate,0.075,2.365,0.55
+Platanus orientalis,Oriental Plane,temperate,0.0745,2.37,0.52
+Podocarpus totara,Totara,boreal,0.082,2.34,0.55
+Populus alba,White Poplar,temperate,0.07,2.39,0.45
+Populus deltoides,Cottonwood,temperate,0.071,2.385,0.42
+Populus tremuloides,Quaking Aspen,boreal,0.069,2.395,0.4
+Prunus avium,Wild Cherry,temperate,0.074,2.37,0.6
+Prunus serotina,Black Cherry,temperate,0.0735,2.375,0.58
+Pseudotsuga menziesii,Douglas Fir,temperate,0.0912,2.3,0.5
+Quercus alba,White Oak,temperate,0.081,2.35,0.7
+Quercus borealis,Red Oak,temperate,0.0805,2.355,0.68
+Quercus cerris,Turkey Oak,temperate,0.08,2.36,0.65
+Quercus coccinea,Scarlet Oak,temperate,0.0795,2.365,0.62
+Quercus douglasii,Blue Oak,temperate,0.079,2.37,0.75
+Quercus faginea,Portuguese Oak,temperate,0.0785,2.375,0.7
+Quercus ilex,Holm Oak,temperate,0.078,2.38,0.8
+Quercus imbricaria,Shingle Oak,temperate,0.0775,2.385,0.65
+Quercus kelloggii,California Black Oak,temperate,0.077,2.39,0.68
+Quercus lyrata,Overcup Oak,temperate,0.0765,2.395,0.62
+Quercus macrocarpa,Bur Oak,temperate,0.076,2.4,0.7
+Quercus muehlenbergii,Chinquapin Oak,temperate,0.0755,2.405,0.68
+Quercus palustris,Pin Oak,temperate,0.075,2.41,0.65
+Quercus petraea,Sessile Oak,temperate,0.0745,2.415,0.7
+Quercus phellos,Willow Oak,temperate,0.074,2.42,0.62
+Quercus prinus,Chestnut Oak,temperate,0.0735,2.425,0.75
+Quercus robur,English Oak,temperate,0.0821,2.35,0.67
+Quercus rubra,Northern red Oak,temperate,0.0815,2.355,0.68
+Quercus suber,Cork Oak,temperate,0.073,2.43,0.25
+Quercus velutina,Black Oak,temperate,0.0725,2.435,0.65
+Rhus coriaria,Sicilian Sumac,temperate,0.076,2.36,0.7
+Robinia pseudoacacia,Black Locust,temperate,0.072,2.835,0.75
+Salix alba,White Willow,temperate,0.068,2.4,0.45
+Salix babylonica,Weeping Willow,temperate,0.0675,2.405,0.42
+Salix fragilis,Crack Willow,temperate,0.067,2.41,0.4
+Salix nigra,Black Willow,temperate,0.0685,2.395,0.43
+Schinus molle,Pepper Tree,tropical,0.047,2.42,0.65
+Shorea robusta,Sal Tree,tropical,0.07,2.36,0.7
+Spathodea campanulata,African Tulip Tree,tropical,0.046,2.43,0.5
+Swietenia macrophylla,Mahogany,tropical,0.0698,2.36,0.55
+Swietenia mahagoni,West Indian Mahogany,tropical,0.069,2.365,0.52
+Syzygium cumini,Jamun,tropical,0.0455,2.432,0.7
+Tabebuia rosea,Rosy Trumpet Tree,tropical,0.0445,2.44,0.65
+Tectona grandis,Teak,tropical,0.0673,2.323,0.65
+Terminalia ivorensis,Idigbo,tropical,0.0435,2.448,0.6
+Terminalia superba,Afara,tropical,0.043,2.45,0.55
+Thuja plicata,Western Redcedar,boreal,0.084,2.34,0.35
+Tilia americana,Basswood,temperate,0.075,2.37,0.5
+Tilia cordata,Littleleaf Linden,temperate,0.0745,2.375,0.52
+Toona ciliata,Red Cedar,tropical,0.044,2.445,0.5
+Triplochiton scleroxylon,Obeche,tropical,0.042,2.46,0.45
+Tsuga heterophylla,Western Hemlock,boreal,0.087,2.32,0.4
+Tsuga mertensiana,Mountain Hemlock,boreal,0.0865,2.325,0.38
+Ulmus americana,American Elm,temperate,0.076,2.36,0.55
+Ulmus glabra,Wych Elm,temperate,0.0755,2.365,0.52
+Ulmus laevis,European White Elm,temperate,0.075,2.37,0.5
+Vitex doniana,Black Plum,tropical,0.0465,2.425,0.7
+Zelkova serrata,Japanese Zelkova,temperate,0.077,2.365,0.65

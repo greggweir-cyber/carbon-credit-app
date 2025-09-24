@@ -33,7 +33,7 @@ def generate_pdf_report(area_ha, species_mix, final_credits):
     pdf.cell(0, 10, "Species Mix", ln=True)
     pdf.set_font("Arial", "", 12)
     for spec in species_mix:
-        pdf.cell(0, 8, f"- {spec['species']}: {spec['pct']}% ({spec['density']} trees/ha)", ln=True)
+        pdf.cell(0, 8, f"- {spec['common_name']} ({spec['species_name']}): {spec['pct']}% ({spec['density']} trees/ha)", ln=True)
     pdf.ln(10)
     
     pdf.set_font("Arial", "I", 10)
@@ -43,6 +43,31 @@ def generate_pdf_report(area_ha, species_mix, final_credits):
 
 st.set_page_config(page_title="Carbon Credit Estimator", layout="wide")
 st.title("🌍 Reforestation Carbon Credit Estimator (40-Year Verra Compliant)")
+
+# Load species data
+@st.cache_data
+def load_species_data():
+    df = pd.read_csv("allometric_equations.csv")
+    return df
+
+try:
+    species_df = load_species_data()
+except Exception as e:
+    st.error(f"Error loading species data: {e}")
+    st.stop()
+
+# Group species by region with common names
+species_by_region = {}
+for region in species_df['region'].dropna().unique():
+    region_df = species_df[species_df['region'] == region]
+    # Create display names: "Common Name (Scientific Name)"
+    display_names = []
+    for _, row in region_df.iterrows():
+        common = row['common_name'] if pd.notna(row['common_name']) else row['species_name']
+        display_names.append(f"{common} ({row['species_name']})")
+    species_by_region[region] = sorted(list(set(display_names)))
+
+regions = sorted(species_by_region.keys())
 
 # Default location
 if "lat" not in st.session_state:
@@ -63,7 +88,7 @@ if map_data and map_data["last_clicked"]:
     st.session_state.lat = map_data["last_clicked"]["lat"]
     st.session_state.lon = map_data["last_clicked"]["lng"]
 
-# Auto-detect region
+# Auto-detect region from latitude
 lat = st.session_state.lat
 if -23.5 <= lat <= 23.5:
     auto_region = "tropical"
@@ -72,81 +97,91 @@ elif 23.5 < lat <= 66.5 or -66.5 <= lat < -23.5:
 else:
     auto_region = "boreal"
 
-st.sidebar.write(f"🌍 Auto-detected region: **{auto_region.title()}**")
-
-# Project inputs
+# Sidebar inputs
 st.sidebar.header("Project Details")
 area_ha = st.sidebar.number_input("Area (hectares)", min_value=1, value=100)
 project_years = st.sidebar.slider("Project Duration (years)", 20, 60, 40)
 mortality = st.sidebar.number_input("Annual Mortality (%)", 0, 20, 4) / 100.0
 
-# Species input
-st.sidebar.subheader("Species Mix")
-region = st.sidebar.selectbox("Region (override)", 
-                             ["tropical", "temperate", "boreal"], 
-                             index=0 if auto_region=="tropical" else 1)
+# Region selection
+st.sidebar.subheader("Region & Species")
+region_options = regions if regions else ["tropical", "temperate", "boreal"]
+default_region_index = region_options.index(auto_region) if auto_region in region_options else 0
+selected_region = st.sidebar.selectbox("Region (auto-detected)", region_options, index=default_region_index)
 
-species_options = {
-    "tropical": ["Tectona grandis", "Acacia mearnsii", "Eucalyptus grandis"],
-    "temperate": ["Pinus sylvestris", "Quercus robur", "Fagus sylvatica"],
-    "boreal": ["Picea abies", "Pinus sylvestris", "Betula pendula"]
-}
+# Species options for selected region
+species_options = species_by_region.get(selected_region, ["Teak (Tectona grandis)"])
 
+# Initialize species list in session state
 if "species_list" not in st.session_state:
     st.session_state.species_list = [
-        {"species": species_options[region][0], "pct": 100, "density": 1100}
+        {"display": species_options[0], "pct": 100, "density": 1100}
     ]
 
+# Display species rows
 for i, spec in enumerate(st.session_state.species_list):
-    cols = st.sidebar.columns([2, 1, 1])
-    spec["species"] = cols[0].selectbox(
-        f"Species {i+1}", 
-        species_options[region],
-        index=species_options[region].index(spec["species"]) if spec["species"] in species_options[region] else 0,
+    cols = st.sidebar.columns([3, 1, 1])
+    spec["display"] = cols[0].selectbox(
+        f"Species {i+1}",
+        species_options,
+        index=species_options.index(spec["display"]) if spec["display"] in species_options else 0,
         key=f"species_{i}"
     )
     spec["pct"] = cols[1].number_input(
-        f"% {i+1}", 
-        min_value=0, max_value=100, 
-        value=spec["pct"], 
+        f"% {i+1}",
+        min_value=0, max_value=100,
+        value=spec["pct"],
         key=f"pct_{i}"
     )
     spec["density"] = cols[2].number_input(
-        f"Density {i+1}", 
-        min_value=100, max_value=5000, 
-        value=spec["density"], 
+        f"Density {i+1}",
+        min_value=100, max_value=5000,
+        value=spec["density"],
         key=f"density_{i}"
     )
 
+# Add/remove buttons
 col1, col2 = st.sidebar.columns(2)
 if col1.button("➕ Add Species"):
     if len(st.session_state.species_list) < 5:
         st.session_state.species_list.append({
-            "species": species_options[region][0], 
-            "pct": 0, 
+            "display": species_options[0],
+            "pct": 0,
             "density": 1100
         })
 if col2.button("➖ Remove Last"):
     if len(st.session_state.species_list) > 1:
         st.session_state.species_list.pop()
 
+# Validate total percentage
 total_pct = sum(spec["pct"] for spec in st.session_state.species_list)
 if total_pct != 100:
     st.sidebar.warning(f"⚠️ Total: {total_pct}%. Must equal 100%!")
 
+# Calculate button
 if st.sidebar.button("Calculate Carbon Credits") and total_pct == 100:
     with st.spinner("Simulating 40-year growth..."):
         try:
+            # Parse display names to extract scientific names and common names
             species_mix = []
             for spec in st.session_state.species_list:
                 if spec["pct"] > 0:
+                    display = spec["display"]
+                    if "(" in display and ")" in display:
+                        common_name = display.split(" (")[0]
+                        species_name = display.split(" (")[1].rstrip(")")
+                    else:
+                        species_name = display
+                        common_name = display
                     species_mix.append({
-                        "species": spec["species"],
-                        "region": region,
+                        "species_name": species_name,
+                        "common_name": common_name,
+                        "region": selected_region,
                         "pct": spec["pct"],
                         "density": spec["density"]
                     })
             
+            # Run simulation
             sim = CarbonCreditSimulator("allometric_equations.csv")
             results = sim.simulate_project(
                 area_ha=area_ha,
@@ -157,13 +192,20 @@ if st.sidebar.button("Calculate Carbon Credits") and total_pct == 100:
             final = results[-1]
             st.success(f"✅ Estimated Net Carbon Credits: **{final['co2e_net_t']:,.0f} tonnes CO₂e**")
             
+            # Chart
             years = [r['year'] for r in results]
             credits = [r['co2e_net_t'] for r in results]
             chart_data = {"Year": years, "Net CO₂e (tonnes)": credits}
             st.line_chart(chart_data, x="Year", y="Net CO₂e (tonnes)")
             
+            # Species mix table
+            st.subheader("Your Species Mix")
             mix_df = pd.DataFrame([
-                {"Species": s["species"], "Percentage": f"{s['pct']}%", "Density": s["density"]}
+                {
+                    "Species": f"{s['common_name']} ({s['species_name']})",
+                    "Percentage": f"{s['pct']}%",
+                    "Density": s["density"]
+                }
                 for s in species_mix
             ])
             st.table(mix_df)
@@ -178,7 +220,8 @@ if st.sidebar.button("Calculate Carbon Credits") and total_pct == 100:
             )
             
         except Exception as e:
-            st.error(f"Error: {str(e)}")
+            st.error(f"Simulation error: {str(e)}")
+            st.code(str(e))
 else:
     if total_pct != 100:
         st.info("👈 Adjust species percentages to total 100%, then click **Calculate**")

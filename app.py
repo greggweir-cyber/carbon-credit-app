@@ -20,8 +20,6 @@ def generate_pdf_report(area_ha, species_mix, final_credits, soil_credits=0):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
-    
-    # Use core font (Arial) - works everywhere
     pdf.set_font("Arial", "B", 16)
     pdf.cell(0, 10, "Carbon Credit Estimation Report", ln=True, align="C")
     pdf.ln(10)
@@ -46,7 +44,7 @@ def generate_pdf_report(area_ha, species_mix, final_credits, soil_credits=0):
     pdf.set_font("Arial", "I", 10)
     pdf.cell(0, 10, "Note: This is a feasibility estimate. Actual carbon credits require validation per Verra VM0042.", ln=True)
     
-    return pdf.output(dest='S')
+    return bytes(pdf.output(dest='S'))  # ✅ FIXED: bytearray → bytes
 
 st.set_page_config(page_title="Carbon Credit Estimator", layout="wide")
 st.title("🌍 Reforestation Carbon Credit Estimator (40-Year Verra Compliant)")

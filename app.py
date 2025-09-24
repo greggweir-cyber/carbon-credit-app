@@ -14,9 +14,8 @@ if current_dir not in sys.path:
 
 from carbon_simulator import CarbonCreditSimulator
 
-# PDF Generator (updated for soil carbon)
-def generate_pdf_report(area_ha, species_mix, final_credits, soil_credits=0):
-    from fpdf import FPDF
+# PDF Generator (VM0047 compliant, gross/net reporting)
+def generate_pdf_report(area_ha, species_mix, gross_credits, buffer_pct, soil_gross=0):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -27,11 +26,19 @@ def generate_pdf_report(area_ha, species_mix, final_credits, soil_credits=0):
     pdf.set_font("Arial", "", 12)
     pdf.cell(0, 10, f"Date: {datetime.now().strftime('%Y-%m-%d')}", ln=True)
     pdf.cell(0, 10, f"Project Area: {area_ha} hectares", ln=True)
+    pdf.cell(0, 10, f"Methodology: Verra VM0047 (2023)", ln=True)
+    pdf.ln(5)
     
-    total_credits = final_credits + soil_credits
-    pdf.cell(0, 10, f"Estimated Net Carbon Credits (40 years): {total_credits:,.0f} tonnes CO2e", ln=True)
-    pdf.cell(0, 8, f"  - Biomass: {final_credits:,.0f} tonnes CO2e", ln=True)
-    pdf.cell(0, 8, f"  - Soil: {soil_credits:,.0f} tonnes CO2e", ln=True)
+    net_credits = gross_credits * (1 - buffer_pct / 100.0)
+    buffer_amount = gross_credits * (buffer_pct / 100.0)
+    
+    pdf.cell(0, 10, f"Gross Carbon Sequestration (40 years): {gross_credits:,.0f} tonnes CO2e", ln=True)
+    pdf.cell(0, 8, f"  - Biomass: {gross_credits - soil_gross:,.0f} tonnes CO2e", ln=True)
+    pdf.cell(0, 8, f"  - Soil: {soil_gross:,.0f} tonnes CO2e", ln=True)
+    pdf.ln(5)
+    
+    pdf.cell(0, 10, f"Buffer Pool ({buffer_pct}%): {buffer_amount:,.0f} tonnes CO2e", ln=True)
+    pdf.cell(0, 10, f"Net Issuable Credits: {net_credits:,.0f} tonnes CO2e", ln=True)
     pdf.ln(10)
     
     pdf.set_font("Arial", "B", 14)
@@ -42,12 +49,12 @@ def generate_pdf_report(area_ha, species_mix, final_credits, soil_credits=0):
     pdf.ln(10)
     
     pdf.set_font("Arial", "I", 10)
-    pdf.cell(0, 10, "Note: This is a feasibility estimate. Actual carbon credits require validation per Verra VM0042.", ln=True)
+    pdf.cell(0, 10, "Note: This is a feasibility estimate per Verra VM0047. Actual carbon credits require validation.", ln=True)
     
-    return bytes(pdf.output(dest='S'))  # ✅ FIXED: bytearray → bytes
+    return bytes(pdf.output(dest='S'))
 
 st.set_page_config(page_title="Carbon Credit Estimator", layout="wide")
-st.title("🌍 Reforestation Carbon Credit Estimator (40-Year Verra Compliant)")
+st.title("🌍 Reforestation Carbon Credit Estimator (Verra VM0047)")
 
 # Load species data
 @st.cache_data
@@ -58,7 +65,7 @@ def load_species_data():
 try:
     species_df = load_species_data()
 except Exception as e:
-    st.error(f"Error loading species data: {e}")
+    st.error(f"Error loading species  {e}")
     st.stop()
 
 # Group species by region with common names
@@ -106,6 +113,10 @@ st.sidebar.header("Project Details")
 area_ha = st.sidebar.number_input("Area (hectares)", min_value=1, value=100)
 project_years = st.sidebar.slider("Project Duration (years)", 20, 60, 40)
 mortality = st.sidebar.number_input("Annual Mortality (%)", 0, 20, 4) / 100.0
+
+# Buffer pool slider (VM0047: 10-20%)
+buffer_pct = st.sidebar.slider("Buffer Pool (%)", 10, 20, 20)
+buffer_fraction = buffer_pct / 100.0
 
 # Region selection
 st.sidebar.subheader("Region & Species")
@@ -164,7 +175,7 @@ if total_pct != 100:
 
 # Calculate button
 if st.sidebar.button("Calculate Carbon Credits") and total_pct == 100:
-    with st.spinner("Simulating 40-year growth (biomass + soil)..."):
+    with st.spinner("Simulating 40-year growth (VM0047 compliant)..."):
         try:
             # Parse display names
             species_mix = []
@@ -185,7 +196,7 @@ if st.sidebar.button("Calculate Carbon Credits") and total_pct == 100:
                         "density": spec["density"]
                     })
             
-            # Run simulation
+            # Run simulation (returns GROSS values)
             sim = CarbonCreditSimulator("allometric_equations.csv")
             results = sim.simulate_project(
                 area_ha=area_ha,
@@ -195,19 +206,28 @@ if st.sidebar.button("Calculate Carbon Credits") and total_pct == 100:
             )
             final = results[-1]
             
-            # Extract biomass and soil credits
-            biomass_credits = final['co2e_net_t'] - final.get('soil_co2e_t', 0)
-            soil_credits = final.get('soil_co2e_t', 0) * len(results)  # Total soil
-            total_credits = biomass_credits + soil_credits
+            # Calculate totals
+            gross_biomass = final['co2e_gross_t']
+            gross_soil = final.get('soil_co2e_gross_t', 0) * len(results)
+            gross_total = gross_biomass + gross_soil
+            net_total = gross_total * (1 - buffer_fraction)
+            buffer_held = gross_total * buffer_fraction
             
-            st.success(f"✅ Estimated Net Carbon Credits: **{total_credits:,.0f} tonnes CO₂e**")
-            st.caption(f"🌳 Biomass: {biomass_credits:,.0f} | 🌱 Soil: {soil_credits:,.0f}")
+            # Display results
+            st.success(f"✅ Net Issuable Credits: **{net_total:,.0f} tonnes CO₂e**")
+            st.caption(f"📊 Gross Sequestration: {gross_total:,.0f} tonnes CO₂e")
+            st.progress(int(buffer_pct), f"Buffer Pool: {buffer_pct}% ({buffer_held:,.0f} tonnes held)")
             
             # Chart
             years = [r['year'] for r in results]
-            total_credits_yearly = [r['co2e_net_t'] for r in results]
-            chart_data = {"Year": years, "Net CO₂e (tonnes)": total_credits_yearly}
-            st.line_chart(chart_data, x="Year", y="Net CO₂e (tonnes)")
+            gross_series = [r['co2e_gross_t'] + r.get('soil_co2e_gross_t', 0) for r in results]
+            net_series = [g * (1 - buffer_fraction) for g in gross_series]
+            chart_data = pd.DataFrame({
+                "Year": years,
+                "Gross CO2e": gross_series,
+                "Net CO2e": net_series
+            })
+            st.line_chart(chart_data, x="Year", y=["Gross CO2e", "Net CO2e"])
             
             # Species mix table
             st.subheader("Your Species Mix")
@@ -222,11 +242,11 @@ if st.sidebar.button("Calculate Carbon Credits") and total_pct == 100:
             st.table(mix_df)
             
             # PDF Download
-            pdf_bytes = generate_pdf_report(area_ha, species_mix, biomass_credits, soil_credits)
+            pdf_bytes = generate_pdf_report(area_ha, species_mix, gross_total, buffer_pct, gross_soil)
             st.download_button(
-                label="📥 Download PDF Report",
+                label="📥 Download VM0047 Report (PDF)",
                 data=pdf_bytes,
-                file_name="carbon_credit_report.pdf",
+                file_name="carbon_credit_vm0047_report.pdf",
                 mime="application/pdf"
             )
             

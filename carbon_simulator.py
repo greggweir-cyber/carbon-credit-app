@@ -134,29 +134,27 @@ class CarbonCreditSimulator:
             co2e_gross_t = carbon_t * CO2E_FACTOR
             co2e_net_t = co2e_gross_t * (1 - VERRA_BUFFER)
 
-            yearly_results.append({
-                'year': year,
-                'trees_total': sum(d['count'] for d in current_trees.values()),
-                'biomass_t': total_biomass / 1000,
-                'carbon_t': carbon_t,
-                'co2e_gross_t': co2e_gross_t,
-                'co2e_net_t': co2e_net_t
-            })
+yearly_results.append({
+    'year': year,
+    'trees_total': sum(d['count'] for d in current_trees.values()),
+    'biomass_t': total_biomass / 1000,
+    'carbon_t': carbon_t,
+    'co2e_gross_t': co2e_gross_t,          # ✅ Keep gross
+    'co2e_net_t': co2e_gross_t,            # Will apply buffer later
+    'soil_co2e_gross_t': 0                 # Will add soil gross later
+})
 
         # Add soil carbon (distributed evenly over project life)
-        if species_mix:
-            region = species_mix[0]['region']  # Assume all species same region
-            soil_co2e_total = self.estimate_soil_carbon(area_ha, region, project_years)
-            soil_co2e_net = soil_co2e_total * (1 - VERRA_BUFFER)
-            annual_soil = soil_co2e_net / project_years
+# After simulation loop, add soil GROSS (no buffer)
+if species_mix:
+    region = species_mix[0]['region']
+    soil_co2e_total_gross = self.estimate_soil_carbon(area_ha, region, project_years)
+    annual_soil_gross = soil_co2e_total_gross / project_years
+    for yr in yearly_results:
+        yr['soil_co2e_gross_t'] = annual_soil_gross
+        yr['total_gross_t'] = yr['co2e_gross_t'] + annual_soil_gross
 
-            for yr in yearly_results:
-                yr['co2e_net_t'] += annual_soil
-                yr['soil_co2e_t'] = annual_soil
-
-        return yearly_results
-
-    def _get_dbh_growth_mm(self, species, region):
+return yearly_results  # Returns GROSS values only    def _get_dbh_growth_mm(self, species, region):
         """Get DBH growth rate (mm/year) based on species and region."""
         # Fast-growing tropical species
         tropical_fast = [

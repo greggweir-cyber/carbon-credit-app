@@ -5,7 +5,7 @@ import numpy as np
 CARBON_FRACTION = 0.47
 CO2E_FACTOR = 3.67
 ROOT_SHOOT_RATIO = 0.20
-VERRA_BUFFER = 0.20  # 20% non-permanence buffer
+# NOTE: Buffer is now applied in app.py, not here
 
 class CarbonCreditSimulator:
     def __init__(self, data_path="allometric_equations.csv"):
@@ -42,7 +42,7 @@ class CarbonCreditSimulator:
         return max(agb, 0.01)  # Avoid zero
 
     def estimate_soil_carbon(self, area_ha, region, project_years=40):
-        """Estimate additional soil carbon sequestration (tonnes CO2e) over project life."""
+        """Estimate GROSS soil carbon sequestration (tonnes CO2e) over project life."""
         # IPCC 2019 default soil organic carbon stocks (tonnes C / ha)
         soc_defaults = {
             "tropical": 75,
@@ -52,7 +52,7 @@ class CarbonCreditSimulator:
         initial_soc_t = area_ha * soc_defaults.get(region, 75)
         # Conservative 10% increase in SOC over 40 years (reforestation effect)
         delta_soc_t = initial_soc_t * 0.10
-        # Convert to CO2e
+        # Convert to CO2e (GROSS - no buffer)
         soil_co2e_t = delta_soc_t * CO2E_FACTOR
         return soil_co2e_t
 
@@ -129,32 +129,31 @@ class CarbonCreditSimulator:
                 )
                 total_biomass += agb_total * (1 + ROOT_SHOOT_RATIO)
 
-            # Carbon accounting (biomass only)
+            # Carbon accounting (GROSS - no buffer)
             carbon_t = (total_biomass / 1000) * CARBON_FRACTION
             co2e_gross_t = carbon_t * CO2E_FACTOR
-            co2e_net_t = co2e_gross_t * (1 - VERRA_BUFFER)
 
-yearly_results.append({
-    'year': year,
-    'trees_total': sum(d['count'] for d in current_trees.values()),
-    'biomass_t': total_biomass / 1000,
-    'carbon_t': carbon_t,
-    'co2e_gross_t': co2e_gross_t,          # ✅ Keep gross
-    'co2e_net_t': co2e_gross_t,            # Will apply buffer later
-    'soil_co2e_gross_t': 0                 # Will add soil gross later
-})
+            yearly_results.append({
+                'year': year,
+                'trees_total': sum(d['count'] for d in current_trees.values()),
+                'biomass_t': total_biomass / 1000,
+                'carbon_t': carbon_t,
+                'co2e_gross_t': co2e_gross_t,  # ✅ GROSS value
+                'soil_co2e_gross_t': 0         # Will be added after loop
+            })
 
-        # Add soil carbon (distributed evenly over project life)
-# After simulation loop, add soil GROSS (no buffer)
-if species_mix:
-    region = species_mix[0]['region']
-    soil_co2e_total_gross = self.estimate_soil_carbon(area_ha, region, project_years)
-    annual_soil_gross = soil_co2e_total_gross / project_years
-    for yr in yearly_results:
-        yr['soil_co2e_gross_t'] = annual_soil_gross
-        yr['total_gross_t'] = yr['co2e_gross_t'] + annual_soil_gross
+        # Add soil carbon (GROSS - no buffer)
+        if species_mix:
+            region = species_mix[0]['region']  # Assume all species same region
+            soil_co2e_total_gross = self.estimate_soil_carbon(area_ha, region, project_years)
+            annual_soil_gross = soil_co2e_total_gross / project_years
 
-return yearly_results  # Returns GROSS values only    def _get_dbh_growth_mm(self, species, region):
+            for yr in yearly_results:
+                yr['soil_co2e_gross_t'] = annual_soil_gross
+
+        return yearly_results  # Returns GROSS values only
+
+    def _get_dbh_growth_mm(self, species, region):
         """Get DBH growth rate (mm/year) based on species and region."""
         # Fast-growing tropical species
         tropical_fast = [

@@ -1,5 +1,9 @@
 species_name,region,equation_type,a,b,c,wood_density
-Tectona grandis,tropical,AGB;dbh,0.0673,2.3230,,0.65
-Acacia mearnsii,tropical,AGB;dbh,0.0509,2.3970,,0.75
-Eucalyptus grandis,tropical,AGB;dbh,0.0812,2.2870,,0.60
-Pinus sylvestris,temperate,AGB;dbh,0.0993,2.3230,,0.45
+Tectona grandis,tropical,AGB;dbh,0.0673,2.323,,0.65
+Acacia mearnsii,tropical,AGB;dbh,0.0509,2.397,,0.75
+Eucalyptus grandis,tropical,AGB;dbh,0.0812,2.287,,0.6
+Pinus sylvestris,temperate,AGB;dbh,0.0993,2.323,,0.45
+Quercus robur,temperate,AGB;dbh,0.0821,2.35,,0.67
+Fagus sylvatica,temperate,AGB;dbh,0.0754,2.38,,0.61
+Picea abies,boreal,AGB;dbh,0.0887,2.31,,0.45
+Betula pendula,boreal,AGB;dbh,0.0721,2.34,,0.6

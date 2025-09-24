@@ -10,9 +10,6 @@ VERRA_BUFFER = 0.20  # 20% non-permanence buffer
 class CarbonCreditSimulator:
     def __init__(self, data_path="allometric_equations.csv"):
         self.equations_df = pd.read_csv(data_path)
-        self.equations_df['species_region'] = (
-            self.equations_df['species_name'] + ";" + self.equations_df['region']
-        )
         self.coeff_cache = {}
         self._build_coeff_cache()
 
@@ -31,6 +28,10 @@ class CarbonCreditSimulator:
         key = (species, region)
         if key in self.coeff_cache:
             return self.coeff_cache[key]
+        # Try same species in any region
+        for (sp, reg), coeffs in self.coeff_cache.items():
+            if sp == species:
+                return coeffs
         # Fallback: use Chave et al. 2014 tropical default
         return {'a': 0.0673, 'b': 2.3230, 'wood_density': 0.5}
 
@@ -43,7 +44,7 @@ class CarbonCreditSimulator:
     def simulate_project(
         self,
         area_ha,
-        species_mix,
+        species_mix,  # List of dicts with 'species_name', 'region', 'pct', 'density'
         project_years=40,
         annual_mortality=0.04,
         thinning_schedule=None
@@ -55,8 +56,9 @@ class CarbonCreditSimulator:
         current_trees = {}
         total_initial_trees = 0
 
+        # Setup initial stand
         for mix in species_mix:
-            species = mix['species']
+            species = mix['species_name']  # ✅ FIXED: was 'species'
             region = mix['region']
             density = mix['density']
             pct = mix['pct'] / 100.0
@@ -70,6 +72,7 @@ class CarbonCreditSimulator:
 
         thin_dict = {t['year']: t['pct_remove']/100.0 for t in thinning_schedule}
 
+        # Simulation loop
         for year in range(1, project_years + 1):
             total_biomass = 0.0
 
@@ -77,16 +80,19 @@ class CarbonCreditSimulator:
                 if data['count'] <= 0:
                     continue
 
+                # Apply mortality
                 survivors = int(data['count'] * (1 - annual_mortality))
                 if survivors <= 0:
                     data['count'] = 0
                     data['dbh_cm'] = np.array([])
                     continue
 
+                # Keep largest trees
                 if len(data['dbh_cm']) > survivors:
                     data['dbh_cm'] = np.sort(data['dbh_cm'])[-survivors:]
                 data['count'] = survivors
 
+                # Apply thinning
                 if year in thin_dict:
                     remove_frac = thin_dict[year]
                     keep_count = int(survivors * (1 - remove_frac))
@@ -97,15 +103,18 @@ class CarbonCreditSimulator:
                         data['count'] = 0
                         data['dbh_cm'] = np.array([])
 
+                # Grow trees
                 growth_mm = self._get_dbh_growth_mm(species, data['region'])
                 data['dbh_cm'] += growth_mm / 10.0
 
+                # Calculate biomass
                 agb_total = sum(
                     self.calculate_agb_kg(dbh, species, data['region'])
                     for dbh in data['dbh_cm']
                 )
                 total_biomass += agb_total * (1 + ROOT_SHOOT_RATIO)
 
+            # Carbon accounting
             carbon_t = (total_biomass / 1000) * CARBON_FRACTION
             co2e_gross_t = carbon_t * CO2E_FACTOR
             co2e_net_t = co2e_gross_t * (1 - VERRA_BUFFER)
@@ -122,10 +131,15 @@ class CarbonCreditSimulator:
         return yearly_results
 
     def _get_dbh_growth_mm(self, species, region):
-        tropical_fast = ["Acacia mearnsii", "Eucalyptus grandis"]
+        """Get DBH growth rate (mm/year) based on species and region."""
+        # Fast-growing tropical species
+        tropical_fast = [
+            "Acacia mangium", "Eucalyptus grandis", "Gmelina arborea",
+            "Paulownia tomentosa", "Leucaena leucocephala"
+        ]
         if region == "tropical":
             return 20.0 if species in tropical_fast else 12.0
         elif region == "temperate":
             return 8.0
-        else:
+        else:  # boreal
             return 5.0

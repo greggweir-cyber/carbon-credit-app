@@ -14,7 +14,29 @@ if current_dir not in sys.path:
 
 from carbon_simulator import CarbonCreditSimulator
 
-# PDF Generator (VM0047 compliant, with management practices)
+# Ecoregion detection (simplified)
+def get_ecoregion(lat, lon):
+    """Estimate WWF ecoregion from latitude/longitude."""
+    if -23.5 <= lat <= 23.5:  # Tropics
+        if -60 <= lon <= 150:
+            return "Tropical and subtropical moist broadleaf forests"
+        elif -20 <= lon <= 50 or 110 <= lon <= 150:
+            return "Tropical and subtropical grasslands, savannas, and shrublands"
+        else:
+            return "Deserts and xeric shrublands"
+    elif 23.5 < lat <= 66.5 or -66.5 <= lat < -23.5:  # Temperate
+        if -10 <= lon <= 40:
+            return "Temperate broadleaf and mixed forests"
+        elif 60 <= lon <= 180 or -180 <= lon <= -50:
+            return "Boreal forests/taiga"
+        elif -20 <= lon <= -50 or 40 <= lon <= 60:
+            return "Mediterranean forests, woodlands, and scrub"
+        else:
+            return "Temperate broadleaf and mixed forests"
+    else:  # Boreal
+        return "Boreal forests/taiga"
+
+# PDF Generator (VM0047 compliant)
 def generate_pdf_report(area_ha, species_mix, gross_credits, buffer_pct, soil_gross, management):
     pdf = FPDF()
     pdf.add_page()
@@ -66,14 +88,18 @@ def generate_pdf_report(area_ha, species_mix, gross_credits, buffer_pct, soil_gr
     
     return bytes(pdf.output(dest='S'))
 
-st.set_page_config(page_title="Carbon Credit Estimator", layout="wide")
-st.title("🌍 Reforestation Carbon Credit Estimator (Verra VM0047)")
-
 # Load species data
 @st.cache_data
 def load_species_data():
     df = pd.read_csv("allometric_equations.csv")
     return df
+
+@st.cache_data
+def load_native_species():
+    return pd.read_csv("native_species.csv")
+
+st.set_page_config(page_title="Carbon Credit Estimator", layout="wide")
+st.title("🌍 Reforestation Carbon Credit Estimator (Verra VM0047)")
 
 try:
     species_df = load_species_data()
@@ -97,6 +123,7 @@ regions = sorted(species_by_region.keys())
 if "lat" not in st.session_state:
     st.session_state.lat = -3.4653
     st.session_state.lon = -62.2153
+    st.session_state.ecoregion = "Tropical and subtropical moist broadleaf forests"
 
 # Map
 st.subheader("📍 Select Project Location")
@@ -111,6 +138,8 @@ map_data = st_folium(m, width=700, height=300)
 if map_data and map_data["last_clicked"]:
     st.session_state.lat = map_data["last_clicked"]["lat"]
     st.session_state.lon = map_data["last_clicked"]["lng"]
+    st.session_state.ecoregion = get_ecoregion(st.session_state.lat, st.session_state.lon)
+    st.sidebar.info(f"📍 Detected ecoregion: **{st.session_state.ecoregion}**")
 
 # Auto-detect region from latitude
 lat = st.session_state.lat
@@ -127,23 +156,17 @@ area_ha = st.sidebar.number_input("Area (hectares)", min_value=1, value=100)
 project_years = st.sidebar.slider("Project Duration (years)", 20, 60, 40)
 mortality = st.sidebar.number_input("Annual Mortality (%)", 0, 20, 4) / 100.0
 
-# Buffer pool slider (VM0047: 10-20%)
+# Buffer pool slider
 buffer_pct = st.sidebar.slider("Buffer Pool (%)", 10, 20, 20)
 buffer_fraction = buffer_pct / 100.0
 
-# Management Practices (VM0047 Section 0.4)
+# Management Practices
 st.sidebar.subheader("Management Practices")
 col1, col2 = st.sidebar.columns(2)
-
-# Irrigation (only if water-limited)
 water_limited = col1.checkbox("Water-limited site?")
 use_irrigation = col1.checkbox("✅ Use irrigation", disabled=not water_limited)
-
-# Nutrients (only if nutrient-poor)
 nutrient_poor = col2.checkbox("Nutrient-poor soil?")
 use_nutrients = col2.checkbox("✅ Use fertilizers", disabled=not nutrient_poor)
-
-# Biochar (always allowed)
 use_biochar = st.sidebar.checkbox("✅ Apply biochar (5 t/ha)")
 
 # Region selection
@@ -152,10 +175,33 @@ region_options = regions if regions else ["tropical", "temperate", "boreal"]
 default_region_index = region_options.index(auto_region) if auto_region in region_options else 0
 selected_region = st.sidebar.selectbox("Region (auto-detected)", region_options, index=default_region_index)
 
-# Species options for selected region
-species_options = species_by_region.get(selected_region, ["Teak (Tectona grandis)"])
+# Filter species to natives only
+ecoregion = st.session_state.get("ecoregion", "Tropical and subtropical moist broadleaf forests")
+native_df = load_native_species()
+native_species_names = native_df[native_df["ecoregion"] == ecoregion]["species_name"].tolist()
 
-# Initialize species list in session state
+full_species_list = species_by_region.get(selected_region, ["Teak (Tectona grandis)"])
+filtered_species = []
+for display in full_species_list:
+    try:
+        if "(" in display and ")" in display:
+            species_name = display.split(" (")[1].rstrip(")")
+        else:
+            species_name = display
+        if species_name in native_species_names:
+            filtered_species.append(display)
+    except:
+        continue
+
+species_options = filtered_species if filtered_species else ["No native species found"]
+
+# Handle no native species
+if species_options == ["No native species found"]:
+    st.sidebar.warning("⚠️ No native forest species for this ecoregion.")
+    st.sidebar.markdown("Consider grassland restoration or consult a local ecologist.")
+    species_options = ["Tectona grandis (non-native)"]
+
+# Initialize species list
 if "species_list" not in st.session_state:
     st.session_state.species_list = [
         {"display": species_options[0], "pct": 100, "density": 1100}
@@ -167,7 +213,7 @@ for i, spec in enumerate(st.session_state.species_list):
     spec["display"] = cols[0].selectbox(
         f"Species {i+1}",
         species_options,
-        index=species_options.index(spec["display"]) if spec["display"] in species_options else 0,
+        index=min(i, len(species_options)-1),
         key=f"species_{i}"
     )
     spec["pct"] = cols[1].number_input(
@@ -224,14 +270,12 @@ if st.sidebar.button("Calculate Carbon Credits") and total_pct == 100:
                         "density": spec["density"]
                     })
             
-            # Build management dict
             management = {
                 "irrigation": use_irrigation,
                 "nutrients": use_nutrients,
                 "biochar": use_biochar
             }
             
-            # Run simulation (returns GROSS values)
             sim = CarbonCreditSimulator("allometric_equations.csv")
             results = sim.simulate_project(
                 area_ha=area_ha,
@@ -242,14 +286,12 @@ if st.sidebar.button("Calculate Carbon Credits") and total_pct == 100:
             )
             final = results[-1]
             
-            # Calculate totals
             gross_biomass = final['co2e_gross_t']
             gross_soil = final.get('soil_co2e_gross_t', 0) * len(results)
             gross_total = gross_biomass + gross_soil
             net_total = gross_total * (1 - buffer_fraction)
             buffer_held = gross_total * buffer_fraction
             
-            # Display results
             st.success(f"✅ Net Issuable Credits: **{net_total:,.0f} tonnes CO₂e**")
             st.caption(f"📊 Gross Sequestration: {gross_total:,.0f} tonnes CO₂e")
             st.progress(int(buffer_pct), f"Buffer Pool: {buffer_pct}% ({buffer_held:,.0f} tonnes held)")

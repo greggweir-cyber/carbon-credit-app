@@ -14,8 +14,8 @@ if current_dir not in sys.path:
 
 from carbon_simulator import CarbonCreditSimulator
 
-# PDF Generator (VM0047 compliant, gross/net reporting)
-def generate_pdf_report(area_ha, species_mix, gross_credits, buffer_pct, soil_gross=0):
+# PDF Generator (VM0047 compliant, with management practices)
+def generate_pdf_report(area_ha, species_mix, gross_credits, buffer_pct, soil_gross, management):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -40,6 +40,19 @@ def generate_pdf_report(area_ha, species_mix, gross_credits, buffer_pct, soil_gr
     pdf.cell(0, 10, f"Buffer Pool ({buffer_pct}%): {buffer_amount:,.0f} tonnes CO2e", ln=True)
     pdf.cell(0, 10, f"Net Issuable Credits: {net_credits:,.0f} tonnes CO2e", ln=True)
     pdf.ln(10)
+    
+    # Management practices
+    if any(management.values()):
+        pdf.set_font("Arial", "B", 14)
+        pdf.cell(0, 10, "Management Practices", ln=True)
+        pdf.set_font("Arial", "", 12)
+        if management.get("irrigation"):
+            pdf.cell(0, 8, "- Irrigation (+15% growth)", ln=True)
+        if management.get("nutrients"):
+            pdf.cell(0, 8, "- Fertilizers (+10% growth)", ln=True)
+        if management.get("biochar"):
+            pdf.cell(0, 8, "- Biochar (+10% growth, +5 tC/ha soil carbon)", ln=True)
+        pdf.ln(5)
     
     pdf.set_font("Arial", "B", 14)
     pdf.cell(0, 10, "Species Mix", ln=True)
@@ -117,6 +130,21 @@ mortality = st.sidebar.number_input("Annual Mortality (%)", 0, 20, 4) / 100.0
 # Buffer pool slider (VM0047: 10-20%)
 buffer_pct = st.sidebar.slider("Buffer Pool (%)", 10, 20, 20)
 buffer_fraction = buffer_pct / 100.0
+
+# Management Practices (VM0047 Section 0.4)
+st.sidebar.subheader("Management Practices")
+col1, col2 = st.sidebar.columns(2)
+
+# Irrigation (only if water-limited)
+water_limited = col1.checkbox("Water-limited site?")
+use_irrigation = col1.checkbox("✅ Use irrigation", disabled=not water_limited)
+
+# Nutrients (only if nutrient-poor)
+nutrient_poor = col2.checkbox("Nutrient-poor soil?")
+use_nutrients = col2.checkbox("✅ Use fertilizers", disabled=not nutrient_poor)
+
+# Biochar (always allowed)
+use_biochar = st.sidebar.checkbox("✅ Apply biochar (5 t/ha)")
 
 # Region selection
 st.sidebar.subheader("Region & Species")
@@ -196,13 +224,21 @@ if st.sidebar.button("Calculate Carbon Credits") and total_pct == 100:
                         "density": spec["density"]
                     })
             
+            # Build management dict
+            management = {
+                "irrigation": use_irrigation,
+                "nutrients": use_nutrients,
+                "biochar": use_biochar
+            }
+            
             # Run simulation (returns GROSS values)
             sim = CarbonCreditSimulator("allometric_equations.csv")
             results = sim.simulate_project(
                 area_ha=area_ha,
                 species_mix=species_mix,
                 project_years=project_years,
-                annual_mortality=mortality
+                annual_mortality=mortality,
+                management=management
             )
             final = results[-1]
             
@@ -217,6 +253,14 @@ if st.sidebar.button("Calculate Carbon Credits") and total_pct == 100:
             st.success(f"✅ Net Issuable Credits: **{net_total:,.0f} tonnes CO₂e**")
             st.caption(f"📊 Gross Sequestration: {gross_total:,.0f} tonnes CO₂e")
             st.progress(int(buffer_pct), f"Buffer Pool: {buffer_pct}% ({buffer_held:,.0f} tonnes held)")
+            
+            # Management uplift summary
+            uplift_msg = []
+            if use_irrigation: uplift_msg.append("Irrigation (+15%)")
+            if use_nutrients: uplift_msg.append("Nutrients (+10%)")
+            if use_biochar: uplift_msg.append("Biochar (+10% growth, +5 tC/ha soil)")
+            if uplift_msg:
+                st.info(f"🌱 Management uplift: {', '.join(uplift_msg)}")
             
             # Chart
             years = [r['year'] for r in results]
@@ -242,7 +286,7 @@ if st.sidebar.button("Calculate Carbon Credits") and total_pct == 100:
             st.table(mix_df)
             
             # PDF Download
-            pdf_bytes = generate_pdf_report(area_ha, species_mix, gross_total, buffer_pct, gross_soil)
+            pdf_bytes = generate_pdf_report(area_ha, species_mix, gross_total, buffer_pct, gross_soil, management)
             st.download_button(
                 label="📥 Download VM0047 Report (PDF)",
                 data=pdf_bytes,

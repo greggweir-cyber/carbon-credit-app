@@ -5,7 +5,6 @@ import numpy as np
 CARBON_FRACTION = 0.47
 CO2E_FACTOR = 3.67
 ROOT_SHOOT_RATIO = 0.20
-# NOTE: Buffer is now applied in app.py, not here
 
 class CarbonCreditSimulator:
     def __init__(self, data_path="allometric_equations.csv"):
@@ -42,28 +41,27 @@ class CarbonCreditSimulator:
         return max(agb, 0.01)  # Avoid zero
 
     def estimate_soil_carbon(self, area_ha, region, project_years=40):
-        """Estimate GROSS soil carbon sequestration (tonnes CO2e) over project life."""
-        # IPCC 2019 default soil organic carbon stocks (tonnes C / ha)
+        """Estimate GROSS natural soil carbon sequestration (tonnes CO2e)."""
         soc_defaults = {
             "tropical": 75,
             "temperate": 100,
             "boreal": 150
         }
         initial_soc_t = area_ha * soc_defaults.get(region, 75)
-        # Conservative 10% increase in SOC over 40 years (reforestation effect)
-        delta_soc_t = initial_soc_t * 0.10
-        # Convert to CO2e (GROSS - no buffer)
-        soil_co2e_t = delta_soc_t * CO2E_FACTOR
-        return soil_co2e_t
+        delta_soc_t = initial_soc_t * 0.10  # 10% increase
+        return delta_soc_t * CO2E_FACTOR
 
     def simulate_project(
         self,
         area_ha,
-        species_mix,  # List of dicts with 'species_name', 'region', 'pct', 'density'
+        species_mix,
         project_years=40,
         annual_mortality=0.04,
-        thinning_schedule=None
+        thinning_schedule=None,
+        management=None
     ):
+        if management is None:
+            management = {"irrigation": False, "nutrients": False, "biochar": False}
         if thinning_schedule is None:
             thinning_schedule = []
 
@@ -71,7 +69,6 @@ class CarbonCreditSimulator:
         current_trees = {}
         total_initial_trees = 0
 
-        # Setup initial stand
         for mix in species_mix:
             species = mix['species_name']
             region = mix['region']
@@ -87,7 +84,6 @@ class CarbonCreditSimulator:
 
         thin_dict = {t['year']: t['pct_remove']/100.0 for t in thinning_schedule}
 
-        # Simulation loop
         for year in range(1, project_years + 1):
             total_biomass = 0.0
 
@@ -95,19 +91,16 @@ class CarbonCreditSimulator:
                 if data['count'] <= 0:
                     continue
 
-                # Apply mortality
                 survivors = int(data['count'] * (1 - annual_mortality))
                 if survivors <= 0:
                     data['count'] = 0
                     data['dbh_cm'] = np.array([])
                     continue
 
-                # Keep largest trees (simulate competition)
                 if len(data['dbh_cm']) > survivors:
                     data['dbh_cm'] = np.sort(data['dbh_cm'])[-survivors:]
                 data['count'] = survivors
 
-                # Apply thinning
                 if year in thin_dict:
                     remove_frac = thin_dict[year]
                     keep_count = int(survivors * (1 - remove_frac))
@@ -118,18 +111,16 @@ class CarbonCreditSimulator:
                         data['count'] = 0
                         data['dbh_cm'] = np.array([])
 
-                # Grow trees
-                growth_mm = self._get_dbh_growth_mm(species, data['region'])
+                # Grow trees with management uplift
+                growth_mm = self._get_dbh_growth_mm(species, data['region'], management)
                 data['dbh_cm'] += growth_mm / 10.0
 
-                # Calculate biomass
                 agb_total = sum(
                     self.calculate_agb_kg(dbh, species, data['region'])
                     for dbh in data['dbh_cm']
                 )
                 total_biomass += agb_total * (1 + ROOT_SHOOT_RATIO)
 
-            # Carbon accounting (GROSS - no buffer)
             carbon_t = (total_biomass / 1000) * CARBON_FRACTION
             co2e_gross_t = carbon_t * CO2E_FACTOR
 
@@ -138,31 +129,43 @@ class CarbonCreditSimulator:
                 'trees_total': sum(d['count'] for d in current_trees.values()),
                 'biomass_t': total_biomass / 1000,
                 'carbon_t': carbon_t,
-                'co2e_gross_t': co2e_gross_t,  # ✅ GROSS value
-                'soil_co2e_gross_t': 0         # Will be added after loop
+                'co2e_gross_t': co2e_gross_t,
+                'soil_co2e_gross_t': 0
             })
 
-        # Add soil carbon (GROSS - no buffer)
+        # Add soil carbon (natural + biochar)
         if species_mix:
-            region = species_mix[0]['region']  # Assume all species same region
-            soil_co2e_total_gross = self.estimate_soil_carbon(area_ha, region, project_years)
-            annual_soil_gross = soil_co2e_total_gross / project_years
+            region = species_mix[0]['region']
+            natural_soil = self.estimate_soil_carbon(area_ha, region, project_years)
+            biochar_soil = 0
+            if management.get("biochar"):
+                # Jeffery et al. 2017: 5 tC/ha stable biochar
+                biochar_soil = area_ha * 5 * CO2E_FACTOR
+            total_soil_gross = natural_soil + biochar_soil
+            annual_soil_gross = total_soil_gross / project_years
 
             for yr in yearly_results:
                 yr['soil_co2e_gross_t'] = annual_soil_gross
 
-        return yearly_results  # Returns GROSS values only
+        return yearly_results
 
-    def _get_dbh_growth_mm(self, species, region):
-        """Get DBH growth rate (mm/year) based on species and region."""
-        # Fast-growing tropical species
-        tropical_fast = [
-            "Acacia mangium", "Eucalyptus grandis", "Gmelina arborea",
-            "Paulownia tomentosa", "Leucaena leucocephala"
-        ]
+    def _get_dbh_growth_mm(self, species, region, management):
+        """Get DBH growth with management uplift."""
+        tropical_fast = ["Acacia mangium", "Eucalyptus grandis", "Gmelina arborea"]
         if region == "tropical":
-            return 20.0 if species in tropical_fast else 12.0
+            base_growth = 20.0 if species in tropical_fast else 12.0
         elif region == "temperate":
-            return 8.0
-        else:  # boreal
-            return 5.0
+            base_growth = 8.0
+        else:
+            base_growth = 5.0
+        
+        # Apply conservative uplifts (IPCC 2019, Jeffery et al. 2017)
+        uplift = 1.0
+        if management.get("irrigation"):
+            uplift *= 1.15  # +15%
+        if management.get("nutrients"):
+            uplift *= 1.10  # +10%
+        if management.get("biochar"):
+            uplift *= 1.10  # +10% (growth boost)
+        
+        return base_growth * uplift

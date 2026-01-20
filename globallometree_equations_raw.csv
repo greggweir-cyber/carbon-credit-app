@@ -1,0 +1,2 @@
+species_name,region,component,equation_type,formula_text,dbh_min_cm,dbh_max_cm,height_required,wood_density,source
+Pinus ponderosa,United States,AGB,LOG_LINEAR_DBH,"log(Biomass) = -4.2063 + 2.2312 * log(DBH)",,,false,,GlobAllomeTree temperate mountain/desert

@@ -11,34 +11,68 @@ class CarbonCreditSimulator:
         self.equations_df = pd.read_csv(data_path)
         self.coeff_cache = {}
         self._build_coeff_cache()
-
     def _build_coeff_cache(self):
         """Pre-load coefficients for fast lookup."""
+        self.coeff_cache = {}
+
+        # Detect GlobAllomeTree-style file
+        if "equation_type" in self.equations_df.columns:
+            import re
+
+            for _, row in self.equations_df.iterrows():
+                key = (row["species_name"], row["region"])
+                eq_type = row.get("equation_type")
+
+                if eq_type == "LOG_LINEAR_DBH":
+                    formula = str(row.get("formula_text", ""))
+                    nums = re.findall(r"[-+]?\d*\.\d+|[-+]?\d+", formula)
+                    if len(nums) >= 2:
+                        self.coeff_cache[key] = {
+                            "equation_type": "LOG_LINEAR_DBH",
+                            "intercept": float(nums[0]),
+                            "slope": float(nums[1]),
+                            "wood_density": row.get("wood_density", 0.5)
+                        }
+            return
+
+        # Fallback: legacy a * dbh^b format
         for _, row in self.equations_df.iterrows():
-            key = (row['species_name'], row['region'])
+            key = (row["species_name"], row["region"])
             self.coeff_cache[key] = {
-                'a': row['a'],
-                'b': row['b'],
-                'wood_density': row['wood_density'] if pd.notna(row['wood_density']) else 0.5
+                "a": row["a"],
+                "b": row["b"],
+                "wood_density": row.get("wood_density", 0.5)
             }
+
 
     def get_coeffs(self, species, region):
         """Get allometric coefficients; fallback to generic if missing."""
         key = (species, region)
         if key in self.coeff_cache:
             return self.coeff_cache[key]
+
         # Try same species in any region
         for (sp, reg), coeffs in self.coeff_cache.items():
             if sp == species:
                 return coeffs
-        # Fallback: use Chave et al. 2014 tropical default
-        return {'a': 0.0673, 'b': 2.3230, 'wood_density': 0.5}
+
+        # Fallback: Chave et al. 2014 tropical default
+        return {"a": 0.0673, "b": 2.3230, "wood_density": 0.5}
 
     def calculate_agb_kg(self, dbh_cm, species, region):
         """Calculate Above-Ground Biomass (kg) for one tree."""
         coeffs = self.get_coeffs(species, region)
-        agb = coeffs['a'] * (dbh_cm ** coeffs['b'])
-        return max(agb, 0.01)  # Avoid zero
+
+        eq_type = coeffs.get("equation_type")
+
+        if eq_type == "LOG_LINEAR_DBH":
+            intercept = coeffs["intercept"]
+            slope = coeffs["slope"]
+            biomass = np.exp(intercept + slope * np.log(max(dbh_cm, 0.01)))
+            return max(float(biomass), 0.01)
+
+        agb = coeffs["a"] * (dbh_cm ** coeffs["b"])
+        return max(float(agb), 0.01)
 
     def estimate_soil_carbon(self, area_ha, region, project_years=40):
         """Estimate GROSS natural soil carbon sequestration (tonnes CO2e)."""
@@ -51,15 +85,7 @@ class CarbonCreditSimulator:
         delta_soc_t = initial_soc_t * 0.10  # 10% increase
         return delta_soc_t * CO2E_FACTOR
 
-    def simulate_project(
-        self,
-        area_ha,
-        species_mix,
-        project_years=40,
-        annual_mortality=0.04,
-        thinning_schedule=None,
-        management=None
-    ):
+    def simulate_project(self, area_ha, species_mix, project_years=40, annual_mortality=0.04, management=None, thinning_schedule=None):
         if management is None:
             management = {"irrigation": False, "nutrients": False, "biochar": False}
         if thinning_schedule is None:

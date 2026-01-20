@@ -276,7 +276,7 @@ if st.sidebar.button("Calculate Carbon Credits") and total_pct == 100:
                 "biochar": use_biochar
             }
             
-            sim = CarbonCreditSimulator("allometric_equations.csv")
+            sim = CarbonCreditSimulator("globallometree_equations_raw.csv")
             results = sim.simulate_project(
                 area_ha=area_ha,
                 species_mix=species_mix,

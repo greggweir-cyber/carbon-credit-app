@@ -22,22 +22,74 @@ st.set_page_config(
 )
 
 def get_ecoregion(lat, lon):
-    if -23.5 <= lat <= 23.5:
-        if -60 <= lon <= 150:
-            return "tropical and subtropical moist broadleaf forests"
-        elif -20 <= lon <= 50 or 110 <= lon <= 150:
-            return "tropical and subtropical grasslands"
-        else:
-            return "deserts and xeric shrublands"
-    elif 23.5 < abs(lat) <= 66.5:
-        if -10 <= lon <= 40:
-            return "temperate broadleaf and mixed forests"
-        elif 60 <= lon <= 180 or -180 <= lon <= -50:
-            return "boreal forests/taiga"
-        else:
-            return "temperate broadleaf and mixed forests"
-    else:
+    """
+    Estimate WWF ecoregion from lat/lon.
+    Uses known desert/arid bounding boxes first, then latitude bands.
+    """
+    # --- Known desert / arid regions (check first before latitude bands) ---
+    # Arabian Peninsula / Middle East deserts
+    if 12 <= lat <= 38 and 32 <= lon <= 65:
+        return "deserts and xeric shrublands"
+    # Sahara / North Africa
+    if 15 <= lat <= 35 and -18 <= lon <= 40:
+        return "deserts and xeric shrublands"
+    # Iranian / Central Asian deserts
+    if 25 <= lat <= 45 and 50 <= lon <= 70:
+        return "deserts and xeric shrublands"
+    # Australian outback
+    if -35 <= lat <= -15 and 115 <= lon <= 145:
+        return "deserts and xeric shrublands"
+    # Atacama / Patagonian
+    if -45 <= lat <= -15 and -75 <= lon <= -65:
+        return "deserts and xeric shrublands"
+    # Gobi / Central Asian steppe
+    if 35 <= lat <= 50 and 80 <= lon <= 120:
+        return "deserts and xeric shrublands"
+    # Southwest USA deserts
+    if 25 <= lat <= 40 and -120 <= lon <= -100:
+        return "deserts and xeric shrublands"
+
+    # --- Mangroves (coastal tropics) ---
+    # (handled by species selection, not auto-detected here)
+
+    # --- Latitude-based biome bands ---
+    abs_lat = abs(lat)
+
+    # Boreal / Arctic
+    if abs_lat > 60:
         return "boreal forests/taiga"
+
+    # Tropical band
+    if abs_lat <= 23.5:
+        # African savanna belt
+        if -20 <= lon <= 50 and 5 <= lat <= 20:
+            return "tropical and subtropical grasslands"
+        # SE Asia / Pacific islands
+        if 90 <= lon <= 180 and -10 <= lat <= 20:
+            return "tropical and subtropical moist broadleaf forests"
+        # Amazon / Central Africa / SE Asia moist
+        return "tropical and subtropical moist broadleaf forests"
+
+    # Sub-tropical / temperate band (23.5 - 60)
+    if 23.5 < abs_lat <= 40:
+        # Mediterranean climates
+        if (-10 <= lon <= 40 and 30 <= lat <= 45):  # Mediterranean basin
+            return "mediterranean forests"
+        if (-125 <= lon <= -115 and 30 <= lat <= 40):  # California
+            return "mediterranean forests"
+        if (115 <= lon <= 155 and -40 <= lat <= -30):  # SW Australia
+            return "mediterranean forests"
+        # East Asia / Eastern USA temperate
+        return "temperate broadleaf and mixed forests"
+
+    # 40-60 degrees
+    if 40 < abs_lat <= 60:
+        # Continental interiors -> boreal tendency
+        if 60 <= lon <= 180 or -180 <= lon <= -90:
+            return "boreal forests/taiga"
+        return "temperate broadleaf and mixed forests"
+
+    return "temperate broadleaf and mixed forests"
 
 def eco_to_region(eco):
     eco = eco.lower()

@@ -306,6 +306,60 @@ def generate_pdf_report(area_ha, species_mix, gross_credits, buffer_pct,
 
     return bytes(pdf.output(dest="S"))
 
+# ── Regional benchmarks for Low / Medium / High estimates ────────────────────────
+REGIONAL_BENCHMARKS = {
+    "tropical and subtropical moist broadleaf forests": {
+        "low"   : {"species": "Terminalia superba",      "common": "Afara",               "density": 800,  "region": "tropical"},
+        "medium": {"species": "Cedrela odorata",         "common": "Spanish Cedar",        "density": 1000, "region": "tropical"},
+        "high"  : {"species": "Acacia mangium",          "common": "Mangium",              "density": 1200, "region": "tropical"},
+    },
+    "tropical and subtropical dry broadleaf forests": {
+        "low"   : {"species": "Colophospermum mopane",   "common": "Mopane",               "density": 800,  "region": "dry_tropical"},
+        "medium": {"species": "Tectona grandis",         "common": "Teak",                 "density": 1000, "region": "dry_tropical"},
+        "high"  : {"species": "Gmelina arborea",         "common": "Gmelina",              "density": 1200, "region": "tropical"},
+    },
+    "tropical and subtropical grasslands": {
+        "low"   : {"species": "Acacia senegal",          "common": "Gum Arabic",           "density": 600,  "region": "tropical_grassland"},
+        "medium": {"species": "Vitellaria paradoxa",     "common": "Shea Tree",            "density": 800,  "region": "tropical_grassland"},
+        "high"  : {"species": "Parkia biglobosa",        "common": "Locust Bean",          "density": 1000, "region": "tropical_grassland"},
+    },
+    "deserts and xeric shrublands": {
+        "low"   : {"species": "Haloxylon persicum",      "common": "White Saxaul",         "density": 600,  "region": "desert"},
+        "medium": {"species": "Acacia tortilis",         "common": "Umbrella Thorn",       "density": 800,  "region": "desert"},
+        "high"  : {"species": "Prosopis cineraria",      "common": "Ghaf Tree",            "density": 1000, "region": "desert"},
+    },
+    "mediterranean forests": {
+        "low"   : {"species": "Quercus ilex",            "common": "Holm Oak",             "density": 800,  "region": "mediterranean"},
+        "medium": {"species": "Pinus halepensis",        "common": "Aleppo Pine",          "density": 1000, "region": "mediterranean"},
+        "high"  : {"species": "Cedrus atlantica",        "common": "Atlas Cedar",          "density": 1100, "region": "mediterranean"},
+    },
+    "temperate broadleaf and mixed forests": {
+        "low"   : {"species": "Quercus robur",           "common": "English Oak",          "density": 800,  "region": "temperate"},
+        "medium": {"species": "Fagus sylvatica",         "common": "European Beech",       "density": 1000, "region": "temperate"},
+        "high"  : {"species": "Populus nigra",           "common": "Black Poplar",         "density": 1200, "region": "temperate"},
+    },
+    "boreal forests/taiga": {
+        "low"   : {"species": "Abies balsamea",          "common": "Balsam Fir",           "density": 800,  "region": "boreal"},
+        "medium": {"species": "Picea abies",             "common": "Norway Spruce",        "density": 1000, "region": "boreal"},
+        "high"  : {"species": "Pinus sylvestris",        "common": "Scots Pine",           "density": 1200, "region": "boreal"},
+    },
+    "mangroves": {
+        "low"   : {"species": "Ceriops tagal",           "common": "Spurred Mangrove",     "density": 1000, "region": "mangrove"},
+        "medium": {"species": "Avicennia marina",        "common": "Grey Mangrove",        "density": 1200, "region": "mangrove"},
+        "high"  : {"species": "Rhizophora mangle",       "common": "Red Mangrove",         "density": 1500, "region": "mangrove"},
+    },
+    "montane grasslands and shrublands": {
+        "low"   : {"species": "Polylepis australis",     "common": "Queñoa",               "density": 800,  "region": "montane"},
+        "medium": {"species": "Alnus acuminata",         "common": "Andean Alder",         "density": 1000, "region": "montane"},
+        "high"  : {"species": "Juniperus procera",       "common": "African Pencil Cedar", "density": 1100, "region": "montane"},
+    },
+    "flooded grasslands and savannas": {
+        "low"   : {"species": "Salix alba",              "common": "White Willow",         "density": 800,  "region": "flooded"},
+        "medium": {"species": "Eucalyptus camaldulensis","common": "River Red Gum",        "density": 1000, "region": "flooded"},
+        "high"  : {"species": "Populus nigra",           "common": "Black Poplar",         "density": 1200, "region": "flooded"},
+    },
+}
+
 # ── App ────────────────────────────────────────────────────────────────────────
 st.title("🌳 VCS Reforestation Carbon Credit Estimator")
 st.caption("Verra AR-ACM0003  |  GlobAllomeTree equations  |  IPCC 2019 RSR  |  VVB-defensible audit trail")
@@ -336,6 +390,53 @@ if map_data and map_data.get("last_clicked"):
     st.session_state.lat       = map_data["last_clicked"]["lat"]
     st.session_state.lon       = map_data["last_clicked"]["lng"]
     st.session_state.ecoregion = get_ecoregion(st.session_state.lat, st.session_state.lon)
+
+# ── Regional estimate summary card ────────────────────────────────────────────
+eco_key    = st.session_state.ecoregion.lower().strip()
+benchmarks = REGIONAL_BENCHMARKS.get(eco_key)
+if benchmarks:
+    try:
+        tp_key   = st.session_state.get("terrapod_key_for_benchmark", "seedball_outdoor")
+        tp       = TERRAPOD_UPLIFTS.get(tp_key, {})
+        tp_mort  = tp.get("annual_mortality_mult", 1.0)
+        tp_grow  = tp.get("dbh_growth_mult", 1.0)
+        tp_label = tp.get("label", "Standard planting")
+        mgmt_bm  = {"terrapod_growth_mult": tp_grow}
+        # Add active management toggles if already set
+        if "use_irrigation" in dir() and use_irrigation:   mgmt_bm["irrigation"] = True
+        if "use_nutrients" in dir() and use_nutrients:     mgmt_bm["nutrients"]  = True
+        if "use_biochar" in dir() and use_biochar:         mgmt_bm["biochar"]    = True
+
+        bm_results = {}
+        for tier in ("low", "medium", "high"):
+            bm = benchmarks[tier]
+            mix = [{"species_name": bm["species"], "common_name": bm["common"],
+                    "region": bm["region"], "pct": 100, "density": bm["density"]}]
+            r = sim.simulate_project(
+                area_ha=area_ha, species_mix=mix,
+                project_years=project_years,
+                annual_mortality=0.04 * tp_mort,
+                management=mgmt_bm,
+            )
+            gross = r[-1]["co2e_gross_t"] + sum(x["soil_co2e_gross_t"] for x in r)
+            net   = gross * (1 - buffer_pct / 100)
+            bm_results[tier] = {"gross": gross, "net": net,
+                                 "species": bm["common"], "density": bm["density"]}
+
+        st.subheader(f"Regional Estimate — {st.session_state.ecoregion.title()}")
+        st.caption(f"Based on representative species for this ecoregion | {area_ha:,} ha | {project_years} yr | {tp_label}")
+        c1, c2, c3 = st.columns(3)
+        for col, tier, color in [(c1,"low","🟡"),(c2,"medium","🟠"),(c3,"high","🟢")]:
+            d = bm_results[tier]
+            col.metric(
+                f"{color} {tier.title()} — {d['species']}",
+                f"{d['net']:,.0f} tCO₂e net",
+                f"Gross: {d['gross']:,.0f}",
+            )
+        st.caption("👇 Select specific species below to refine your estimate")
+        st.divider()
+    except Exception:
+        pass  # Silently skip if sim not loaded yet
 
 st.sidebar.header("Project Parameters")
 st.sidebar.info(f"Ecoregion detected:\n**{st.session_state.ecoregion.title()}**")
@@ -376,6 +477,7 @@ terrapod_key = {
     "TerraPod (outdoor)"              : "seedball_outdoor",
     "TerraPod (greenhouse + outdoor)" : "seedball_greenhouse",
 }[terrapod_option]
+st.session_state["terrapod_key_for_benchmark"] = terrapod_key or "seedball_outdoor"
 
 if terrapod_key:
     tp = TERRAPOD_UPLIFTS[terrapod_key]
@@ -508,19 +610,19 @@ if st.sidebar.button("Calculate Carbon Credits", type="primary") and total_pct =
             gross_total   = gross_biomass + gross_soil
             buffer_held   = gross_total * (buffer_pct / 100.0)
             net_total     = gross_total * (1 - buffer_pct / 100.0)
-            net_vcs       = net_total * 0.80
+            net_vcs       = net_total  # 20% uncertainty discount available but not applied here
 
             audit = sim.get_audit_trail(
                 species_mix, management, area_ha, project_years, mortality, buffer_pct
             )
 
-            st.success(f"Net VCUs (buffer + 20% uncertainty discount): **{net_vcs:,.0f} tCO2e**")
+            st.success(f"Estimated Net VCUs (after {buffer_pct}% buffer): **{net_vcs:,.0f} tCO2e**")
 
             col1, col2, col3, col4 = st.columns(4)
-            col1.metric("Gross tCO2e",       f"{gross_total:,.0f}")
-            col2.metric("Buffer held",        f"{buffer_held:,.0f}")
-            col3.metric("Net pre-discount",   f"{net_total:,.0f}")
-            col4.metric("VCS net (-20%)",     f"{net_vcs:,.0f}")
+            col1.metric("Gross tCO2e",        f"{gross_total:,.0f}")
+            col2.metric("Buffer held",         f"{buffer_held:,.0f}")
+            col3.metric("Net VCUs (est.)",     f"{net_total:,.0f}")
+            col4.metric("Net after buffer",    f"{net_vcs:,.0f}")
 
             if active_uplifts:
                 st.info(f"Management uplifts: {' | '.join(active_uplifts)}")
@@ -542,7 +644,7 @@ if st.sidebar.button("Calculate Carbon Credits", type="primary") and total_pct =
                 total_stock = r["co2e_gross_t"] + cumulative_soil
                 years.append(r["year"])
                 cum_gross.append(round(total_stock, 0))
-                cum_net.append(round(total_stock * (1 - buffer_pct/100) * 0.80, 0))
+                cum_net.append(round(total_stock * (1 - buffer_pct/100), 0))
 
             chart_df = pd.DataFrame({"Year": years, "Gross tCO2e": cum_gross, "Net VCUs": cum_net})
             st.line_chart(chart_df, x="Year", y=["Gross tCO2e", "Net VCUs"])
@@ -570,7 +672,7 @@ if st.sidebar.button("Calculate Carbon Credits", type="primary") and total_pct =
                 st.write(f"**Below-ground biomass (BGB):** Included via root-to-shoot ratio (RSR) - Total biomass = AGB x (1 + RSR)")
                 st.write(f"**RSR ({detected_region}):** {rsr_val} - {RSR_CITATION}")
                 st.write(f"**BGB carbon pool:** Fully accounted for in all sequestration estimates per VCS AR-ACM0003 requirements")
-                st.write(f"**Uncertainty discount:** 20% - VCS Uncertainty & Variance Policy v4")
+                st.write(f"**Uncertainty discount:** 20% available per VCS Uncertainty & Variance Policy v4 (not applied to estimates shown)")
                 st.write(f"**Buffer pool:** {buffer_pct}% - user selected (VCS min 10%)")
                 if use_irrigation: st.write(f"**Irrigation:** {UPLIFT_CITATIONS['irrigation']}")
                 if use_biochar:    st.write(f"**Biochar:** {UPLIFT_CITATIONS['biochar']}")

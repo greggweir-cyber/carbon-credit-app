@@ -170,11 +170,11 @@ def pdf_safe(text):
         t = t.replace(bad, good)
     return t.encode('latin-1', errors='replace').decode('latin-1')
 
-@st.cache_data
+@st.cache_data(ttl=0)
 def load_species_data():
     return pd.read_csv("allometric_equations.csv")
 
-@st.cache_data
+@st.cache_data(ttl=0)
 def load_native_species():
     df = pd.read_csv("native_species.csv")
     df["ecoregion"] = df["ecoregion"].str.strip().str.lower()

@@ -465,12 +465,54 @@ class CarbonCreditSimulator:
                 )
                 c["dbh_arr"] = c["dbh_arr"] + (growth_mm / 10.0)
 
-                # Biomass
+                # Biomass — vectorized for speed
                 rsr = RSR.get(c["region"].lower(), RSR_DEFAULT)
-                agb_kg = float(np.sum([
-                    self.calculate_agb_kg(d, c["species"], c["region"])
-                    for d in c["dbh_arr"]
-                ]))
+                # Get equation coefficients once, apply to all trees
+                dbh_arr = c["dbh_arr"]
+                sp  = c["species"]
+                rg  = c["region"]
+                # Try Tier 1: GlobAllomeTree vectorized
+                rec = self.globallometree.get(sp)
+                if not rec:
+                    genus = sp.split()[0] if sp else ""
+                    for csp, r in self.globallometree.items():
+                        if csp.startswith(genus + " "):
+                            rec = r; break
+                if rec:
+                    # Vectorized eval using numpy
+                    eq  = rec['equation']
+                    tr  = rec['output_tr']
+                    uy  = rec['unit_y']
+                    try:
+                        f = str(eq).replace('^','**').replace('X','dbh_arr')
+                        f = (f.replace('ln(','np.log(').replace('log10(','np.log10(')
+                              .replace('Log10(','np.log10(').replace('log(','np.log(')
+                              .replace('Log(','np.log(').replace('exp(','np.exp(')
+                              .replace('sqrt(','np.sqrt('))
+                        result = eval(f, {"np": np, "dbh_arr": dbh_arr, "__builtins__": {}})
+                        result = np.where(np.isfinite(result) & (result > 0), result, 0.0)
+                        if tr in ('log','ln'): result = np.exp(result)
+                        elif tr in ('log10',): result = 10.0 ** result
+                        if uy == 'g': result = result / 1000.0
+                        elif uy == 'mg': result = result * 1000.0
+                        agb_kg = float(np.sum(result))
+                    except:
+                        agb_kg = float(np.sum([self.calculate_agb_kg(d, sp, rg) for d in dbh_arr]))
+                else:
+                    # Tier 2: simple power law — fully vectorized
+                    s = self.simple_cache.get(sp)
+                    if not s:
+                        genus = sp.split()[0] if sp else ""
+                        for csp, sv in self.simple_cache.items():
+                            if csp.startswith(genus + " "):
+                                s = sv; break
+                    if s:
+                        agb_kg = float(np.sum(s["a"] * (dbh_arr ** s["b"])))
+                    else:
+                        # Tier 3: IPCC regional default
+                        defaults = {"tropical":(0.0509,2.50),"temperate":(0.065,2.38),"boreal":(0.085,2.32)}
+                        a, b = defaults.get(rg, defaults["tropical"])
+                        agb_kg = float(np.sum(a * (dbh_arr ** b)))
                 total_biomass_kg += agb_kg * (1.0 + rsr)
 
             carbon_t   = (total_biomass_kg / 1000.0) * CARBON_FRACTION

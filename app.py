@@ -391,53 +391,6 @@ if map_data and map_data.get("last_clicked"):
     st.session_state.lon       = map_data["last_clicked"]["lng"]
     st.session_state.ecoregion = get_ecoregion(st.session_state.lat, st.session_state.lon)
 
-# ── Regional estimate summary card ────────────────────────────────────────────
-eco_key    = st.session_state.ecoregion.lower().strip()
-benchmarks = REGIONAL_BENCHMARKS.get(eco_key)
-if benchmarks:
-    try:
-        tp_key   = st.session_state.get("terrapod_key_for_benchmark", "seedball_outdoor")
-        tp       = TERRAPOD_UPLIFTS.get(tp_key, {})
-        tp_mort  = tp.get("annual_mortality_mult", 1.0)
-        tp_grow  = tp.get("dbh_growth_mult", 1.0)
-        tp_label = tp.get("label", "Standard planting")
-        mgmt_bm  = {"terrapod_growth_mult": tp_grow}
-        # Add active management toggles if already set
-        if "use_irrigation" in dir() and use_irrigation:   mgmt_bm["irrigation"] = True
-        if "use_nutrients" in dir() and use_nutrients:     mgmt_bm["nutrients"]  = True
-        if "use_biochar" in dir() and use_biochar:         mgmt_bm["biochar"]    = True
-
-        bm_results = {}
-        for tier in ("low", "medium", "high"):
-            bm = benchmarks[tier]
-            mix = [{"species_name": bm["species"], "common_name": bm["common"],
-                    "region": bm["region"], "pct": 100, "density": bm["density"]}]
-            r = sim.simulate_project(
-                area_ha=area_ha, species_mix=mix,
-                project_years=project_years,
-                annual_mortality=0.04 * tp_mort,
-                management=mgmt_bm,
-            )
-            gross = r[-1]["co2e_gross_t"] + sum(x["soil_co2e_gross_t"] for x in r)
-            net   = gross * (1 - buffer_pct / 100)
-            bm_results[tier] = {"gross": gross, "net": net,
-                                 "species": bm["common"], "density": bm["density"]}
-
-        st.subheader(f"Regional Estimate — {st.session_state.ecoregion.title()}")
-        st.caption(f"Based on representative species for this ecoregion | {area_ha:,} ha | {project_years} yr | {tp_label}")
-        c1, c2, c3 = st.columns(3)
-        for col, tier, color in [(c1,"low","🟡"),(c2,"medium","🟠"),(c3,"high","🟢")]:
-            d = bm_results[tier]
-            col.metric(
-                f"{color} {tier.title()} — {d['species']}",
-                f"{d['net']:,.0f} tCO₂e net",
-                f"Gross: {d['gross']:,.0f}",
-            )
-        st.caption("👇 Select specific species below to refine your estimate")
-        st.divider()
-    except Exception:
-        pass  # Silently skip if sim not loaded yet
-
 st.sidebar.header("Project Parameters")
 st.sidebar.info(f"Ecoregion detected:\n**{st.session_state.ecoregion.title()}**")
 detected_region = eco_to_region(st.session_state.ecoregion)
@@ -566,6 +519,55 @@ if c2.button("- Remove"):
 total_pct = sum(s["pct"] for s in st.session_state.species_list)
 if total_pct != 100:
     st.sidebar.warning(f"Mix = {total_pct}%. Must equal 100%.")
+
+# ── Regional estimate summary card ───────────────────────────────────────────
+eco_key    = st.session_state.ecoregion.lower().strip()
+benchmarks = REGIONAL_BENCHMARKS.get(eco_key)
+if benchmarks:
+    try:
+        tp_key  = terrapod_key or "seedball_outdoor"
+        tp      = TERRAPOD_UPLIFTS.get(tp_key, {})
+        tp_mort = tp.get("annual_mortality_mult", 1.0)
+        tp_grow = tp.get("dbh_growth_mult", 1.0)
+        tp_label= tp.get("label", "Standard planting")
+        mgmt_bm = {
+            "terrapod_growth_mult": tp_grow,
+            "irrigation": use_irrigation,
+            "nutrients" : use_nutrients,
+            "biochar"   : use_biochar,
+        }
+        bm_results = {}
+        for tier in ("low", "medium", "high"):
+            bm  = benchmarks[tier]
+            mix = [{"species_name": bm["species"], "common_name": bm["common"],
+                    "region": bm["region"], "pct": 100, "density": bm["density"]}]
+            r   = sim.simulate_project(
+                area_ha=area_ha, species_mix=mix,
+                project_years=project_years,
+                annual_mortality=0.04 * tp_mort,
+                management=mgmt_bm,
+            )
+            gross = r[-1]["co2e_gross_t"] + sum(x["soil_co2e_gross_t"] for x in r)
+            net   = gross * (1 - buffer_pct / 100)
+            bm_results[tier] = {"gross": gross, "net": net, "species": bm["common"]}
+
+        st.subheader(f"📊 Regional Estimate — {st.session_state.ecoregion.title()}")
+        st.caption(
+            f"{area_ha:,} ha · {project_years} yr · {tp_label} · "
+            f"Representative species for this ecoregion"
+        )
+        c1, c2, c3 = st.columns(3)
+        for col, tier, icon in [(c1,"low","🟡"),(c2,"medium","🟠"),(c3,"high","🟢")]:
+            d = bm_results[tier]
+            col.metric(
+                f"{icon} {tier.title()} — {d['species']}",
+                f"{d['net']:,.0f} tCO₂e net",
+                f"Gross: {d['gross']:,.0f}",
+            )
+        st.caption("Select specific species in the sidebar to refine this estimate ↑")
+        st.divider()
+    except Exception as _e:
+        st.caption(f"Regional estimate unavailable: {_e}")
 
 if st.sidebar.button("Calculate Carbon Credits", type="primary") and total_pct == 100:
     with st.spinner("Simulating..."):

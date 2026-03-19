@@ -205,7 +205,7 @@ def load_native_species():
     df["ecoregion"] = df["ecoregion"].str.strip().str.lower()
     return df
 
-@st.cache_resource
+@st.cache_resource(ttl=0)
 def load_simulator():
     return CarbonCreditSimulator(
         data_path="allometric_equations.csv",
@@ -324,9 +324,9 @@ REGIONAL_BENCHMARKS = {
         "high"  : {"species": "Parkia biglobosa",        "common": "Locust Bean",          "density": 1000, "region": "tropical_grassland"},
     },
     "deserts and xeric shrublands": {
-        "low"   : {"species": "Haloxylon persicum",      "common": "White Saxaul",         "density": 600,  "region": "desert"},
-        "medium": {"species": "Acacia tortilis",         "common": "Umbrella Thorn",       "density": 800,  "region": "desert"},
-        "high"  : {"species": "Prosopis cineraria",      "common": "Ghaf Tree",            "density": 1000, "region": "desert"},
+        "low"   : {"species": "Acacia tortilis",         "common": "Umbrella Thorn",       "density": 600,  "region": "desert"},
+        "medium": {"species": "Ziziphus spina-christi",  "common": "Christ's Thorn",       "density": 800,  "region": "desert"},
+        "high"  : {"species": "Acacia nilotica",         "common": "Nile Acacia",          "density": 1000, "region": "desert"},
     },
     "mediterranean forests": {
         "low"   : {"species": "Quercus ilex",            "common": "Holm Oak",             "density": 800,  "region": "mediterranean"},
@@ -336,7 +336,7 @@ REGIONAL_BENCHMARKS = {
     "temperate broadleaf and mixed forests": {
         "low"   : {"species": "Quercus robur",           "common": "English Oak",          "density": 800,  "region": "temperate"},
         "medium": {"species": "Fagus sylvatica",         "common": "European Beech",       "density": 1000, "region": "temperate"},
-        "high"  : {"species": "Populus nigra",           "common": "Black Poplar",         "density": 1200, "region": "temperate"},
+        "high"  : {"species": "Pinus sylvestris",        "common": "Scots Pine",           "density": 1200, "region": "temperate"},
     },
     "boreal forests/taiga": {
         "low"   : {"species": "Abies balsamea",          "common": "Balsam Fir",           "density": 800,  "region": "boreal"},

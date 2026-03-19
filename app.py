@@ -193,6 +193,8 @@ def generate_pdf_report(area_ha, species_mix, gross_credits, buffer_pct,
     constants = [
         ("Carbon fraction",    "0.47",  "IPCC 2006 Table 4.3"),
         ("CO2e factor",        "3.67",  "Molecular weight C:CO2"),
+        ("AGB",                "Species-specific allometric equations", "GlobAllomeTree / project dataset"),
+        ("BGB included",       "Yes - Total biomass = AGB x (1 + RSR)", "VCS AR-ACM0003 required carbon pool"),
         ("RSR tropical",       "0.235", "IPCC 2019 Table 4.4"),
         ("RSR temperate",      "0.192", "IPCC 2019 Table 4.4"),
         ("RSR boreal",         "0.390", "IPCC 2019 Table 4.4"),
@@ -370,8 +372,10 @@ if st.sidebar.button("Calculate Carbon Credits", type="primary") and total_pct =
                 project_years=project_years, annual_mortality=mortality,
                 management=management,
             )
-            gross_biomass = sum(r["co2e_gross_t"] for r in results)
-            gross_soil    = sum(r["soil_co2e_gross_t"] for r in results)
+            # Carbon stock at END of crediting period (not sum of annual stocks)
+            final         = results[-1]
+            gross_biomass = final["co2e_gross_t"]
+            gross_soil    = sum(r["soil_co2e_gross_t"] for r in results)  # soil IS cumulative annual
             gross_total   = gross_biomass + gross_soil
             buffer_held   = gross_total * (buffer_pct / 100.0)
             net_total     = gross_total * (1 - buffer_pct / 100.0)
@@ -393,13 +397,15 @@ if st.sidebar.button("Calculate Carbon Credits", type="primary") and total_pct =
                 st.info(f"Management uplifts: {' | '.join(active_uplifts)}")
 
             st.subheader("Cumulative Carbon Accumulation")
+            # Chart: biomass stock at each year + cumulative soil
             years, cum_gross, cum_net = [], [], []
-            running = 0
+            cumulative_soil = 0
             for r in results:
-                running += r["co2e_gross_t"] + r["soil_co2e_gross_t"]
+                cumulative_soil += r["soil_co2e_gross_t"]
+                total_stock = r["co2e_gross_t"] + cumulative_soil
                 years.append(r["year"])
-                cum_gross.append(running)
-                cum_net.append(running * (1 - buffer_pct/100) * 0.80)
+                cum_gross.append(round(total_stock, 0))
+                cum_net.append(round(total_stock * (1 - buffer_pct/100) * 0.80, 0))
 
             chart_df = pd.DataFrame({"Year": years, "Gross tCO2e": cum_gross, "Net VCUs": cum_net})
             st.line_chart(chart_df, x="Year", y=["Gross tCO2e", "Net VCUs"])
@@ -422,7 +428,11 @@ if st.sidebar.button("Calculate Carbon Credits", type="primary") and total_pct =
             with st.expander("VCS Assumptions & Citations"):
                 st.write(f"**Carbon fraction:** 0.47 - IPCC 2006 Table 4.3")
                 st.write(f"**CO2e factor:** 3.67 - molecular weight C:CO2")
-                st.write(f"**RSR ({detected_region}):** {audit['rsr_values'].get(detected_region, 0.235)} - {RSR_CITATION}")
+                rsr_val = audit['rsr_values'].get(detected_region, 0.235)
+                st.write(f"**Above-ground biomass (AGB):** Calculated from species-specific allometric equations (Biomass = f(DBH))")
+                st.write(f"**Below-ground biomass (BGB):** Included via root-to-shoot ratio (RSR) - Total biomass = AGB x (1 + RSR)")
+                st.write(f"**RSR ({detected_region}):** {rsr_val} - {RSR_CITATION}")
+                st.write(f"**BGB carbon pool:** Fully accounted for in all sequestration estimates per VCS AR-ACM0003 requirements")
                 st.write(f"**Uncertainty discount:** 20% - VCS Uncertainty & Variance Policy v4")
                 st.write(f"**Buffer pool:** {buffer_pct}% - user selected (VCS min 10%)")
                 if use_irrigation: st.write(f"**Irrigation:** {UPLIFT_CITATIONS['irrigation']}")

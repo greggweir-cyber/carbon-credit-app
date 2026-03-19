@@ -118,6 +118,7 @@ class CarbonCreditSimulator:
 
         print(f"[CarbonSim] Tier1 GlobAllomeTree: {len(self.globallometree)} species")
         print(f"[CarbonSim] Tier2 simple allometric: {len(self.simple_cache)} species")
+        self._agb_cache = {}   # memoize equation lookups per species
 
     # ── Loaders ────────────────────────────────────────────────────────────────
 
@@ -248,49 +249,52 @@ class CarbonCreditSimulator:
 
     # ── Biomass calculation ────────────────────────────────────────────────────
 
-    def calculate_agb_kg(self, dbh_cm: float, species: str, region: str) -> float:
-        """
-        Return above-ground biomass in kg for one tree.
-        Three-tier fallback with genus-level matching at each tier.
-        """
-        dbh    = max(float(dbh_cm), 0.5)
-        sp     = " ".join(str(species).strip().split())
-        rg     = str(region).strip().lower()
-        genus  = sp.split()[0] if sp else ""
+    def _get_species_rec(self, species: str, region: str):
+        """Memoized lookup of best equation record for a species."""
+        sp = " ".join(str(species).strip().split())
+        if sp in self._agb_cache:
+            return self._agb_cache[sp]
 
-        # Tier 1: GlobAllomeTree exact match
+        genus = sp.split()[0] if sp else ""
+
+        # Tier 1: GlobAllomeTree exact
         rec = self.globallometree.get(sp)
+        if not rec and genus:
+            for csp, r in self.globallometree.items():
+                if csp.startswith(genus + " "):
+                    rec = r; break
         if rec:
+            self._agb_cache[sp] = ("globallometree", rec)
+            return self._agb_cache[sp]
+
+        # Tier 2: simple allometric
+        s = self.simple_cache.get(sp)
+        if not s and genus:
+            for csp, sv in self.simple_cache.items():
+                if csp.startswith(genus + " "):
+                    s = sv; break
+        if s:
+            self._agb_cache[sp] = ("simple", s)
+            return self._agb_cache[sp]
+
+        # Tier 3: IPCC default
+        defaults = {"tropical":(0.0509,2.50),"temperate":(0.065,2.38),"boreal":(0.085,2.32)}
+        rg = str(region).strip().lower()
+        self._agb_cache[sp] = ("default", defaults.get(rg, defaults["tropical"]))
+        return self._agb_cache[sp]
+
+    def calculate_agb_kg(self, dbh_cm: float, species: str, region: str) -> float:
+        """Return above-ground biomass in kg for one tree."""
+        dbh = max(float(dbh_cm), 0.5)
+        tier, rec = self._get_species_rec(species, region)
+        if tier == "globallometree":
             val = _eval_formula(rec['equation'], rec['output_tr'], rec['unit_y'], dbh)
             if val: return val
-
-        # Tier 1: GlobAllomeTree genus match
-        if genus:
-            for cached_sp, rec in self.globallometree.items():
-                if cached_sp.startswith(genus + " "):
-                    val = _eval_formula(rec['equation'], rec['output_tr'], rec['unit_y'], dbh)
-                    if val: return val
-
-        # Tier 2: simple allometric exact match
-        s = self.simple_cache.get(sp)
-        if s:
-            val = s["a"] * (dbh ** s["b"])
-            if val > 0: return float(val)
-
-        # Tier 2: simple allometric genus match
-        if genus:
-            for cached_sp, s in self.simple_cache.items():
-                if cached_sp.startswith(genus + " "):
-                    val = s["a"] * (dbh ** s["b"])
-                    if val > 0: return float(val)
-
-        # Tier 3: IPCC 2019 regional default
-        defaults = {
-            "tropical" : (0.0509, 2.50),
-            "temperate": (0.065,  2.38),
-            "boreal"   : (0.085,  2.32),
-        }
-        a, b = defaults.get(rg, defaults["tropical"])
+        if tier in ("globallometree", "simple"):
+            if tier == "simple":
+                return max(float(rec["a"] * (dbh ** rec["b"])), 0.01)
+        # default
+        a, b = rec
         return max(a * (dbh ** b), 0.01)
 
     def get_equation_info(self, species: str) -> dict:
@@ -471,13 +475,9 @@ class CarbonCreditSimulator:
                 dbh_arr = c["dbh_arr"]
                 sp  = c["species"]
                 rg  = c["region"]
-                # Try Tier 1: GlobAllomeTree vectorized
-                rec = self.globallometree.get(sp)
-                if not rec:
-                    genus = sp.split()[0] if sp else ""
-                    for csp, r in self.globallometree.items():
-                        if csp.startswith(genus + " "):
-                            rec = r; break
+                # Try Tier 1: GlobAllomeTree vectorized (uses memoized lookup)
+                _tier, _rec = self._get_species_rec(sp, rg)
+                rec = _rec if _tier == "globallometree" else None
                 if rec:
                     # Vectorized eval using numpy
                     eq  = rec['equation']
@@ -499,19 +499,12 @@ class CarbonCreditSimulator:
                     except:
                         agb_kg = float(np.sum([self.calculate_agb_kg(d, sp, rg) for d in dbh_arr]))
                 else:
-                    # Tier 2: simple power law — fully vectorized
-                    s = self.simple_cache.get(sp)
-                    if not s:
-                        genus = sp.split()[0] if sp else ""
-                        for csp, sv in self.simple_cache.items():
-                            if csp.startswith(genus + " "):
-                                s = sv; break
-                    if s:
-                        agb_kg = float(np.sum(s["a"] * (dbh_arr ** s["b"])))
+                    # Tier 2/3: use memoized lookup
+                    _tier2, _rec2 = self._get_species_rec(sp, rg)
+                    if _tier2 == "simple":
+                        agb_kg = float(np.sum(_rec2["a"] * (dbh_arr ** _rec2["b"])))
                     else:
-                        # Tier 3: IPCC regional default
-                        defaults = {"tropical":(0.0509,2.50),"temperate":(0.065,2.38),"boreal":(0.085,2.32)}
-                        a, b = defaults.get(rg, defaults["tropical"])
+                        a, b = _rec2
                         agb_kg = float(np.sum(a * (dbh_arr ** b)))
                 total_biomass_kg += agb_kg * (1.0 + rsr)
 

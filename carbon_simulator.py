@@ -45,7 +45,7 @@ SOC_DEFAULTS = {"tropical": 75, "temperate": 100, "boreal": 150}
 SOC_CITATION  = "IPCC 2019 Refinement Vol.4 Ch.4, Table 2.3 regional defaults"
 
 # ── Formula evaluator ──────────────────────────────────────────────────────────
-def _eval_formula(equation: str, output_tr: str, unit_y: str, dbh: float) -> float | None:
+def _eval_formula(equation: str, output_tr: str, unit_y: str, dbh: float):
     """Evaluate a GlobAllomeTree equation string. Returns kg or None on failure."""
     try:
         dbh = max(float(dbh), 0.5)

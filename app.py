@@ -11,7 +11,8 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-from carbon_simulator import CarbonCreditSimulator, UPLIFT_CITATIONS, RSR_CITATION
+from carbon_simulator import CarbonCreditSimulator, UPLIFT_CITATIONS
+RSR_CITATION = "IPCC 2019 Refinement Vol.4 Ch.4 Table 4.4"
 
 # ── Page config ────────────────────────────────────────────────────────────────
 st.set_page_config(

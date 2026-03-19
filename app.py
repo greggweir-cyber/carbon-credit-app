@@ -24,79 +24,137 @@ st.set_page_config(
 def get_ecoregion(lat, lon):
     """
     Estimate WWF ecoregion from lat/lon.
-    Uses known desert/arid bounding boxes first, then latitude bands.
+    Checks specific biome polygons before falling back to latitude bands.
+    Covers: deserts, mangroves, dry broadleaf, montane, flooded, mediterranean,
+            tropical moist, tropical grasslands, temperate, boreal.
     """
-    # --- Known desert / arid regions (check first before latitude bands) ---
-    # Arabian Peninsula / Middle East deserts
-    if 12 <= lat <= 38 and 32 <= lon <= 65:
-        return "deserts and xeric shrublands"
-    # Sahara / North Africa
-    if 15 <= lat <= 35 and -18 <= lon <= 40:
-        return "deserts and xeric shrublands"
-    # Iranian / Central Asian deserts
-    if 25 <= lat <= 45 and 50 <= lon <= 70:
-        return "deserts and xeric shrublands"
-    # Australian outback
-    if -35 <= lat <= -15 and 115 <= lon <= 145:
-        return "deserts and xeric shrublands"
-    # Atacama / Patagonian
-    if -45 <= lat <= -15 and -75 <= lon <= -65:
-        return "deserts and xeric shrublands"
-    # Gobi / Central Asian steppe
-    if 35 <= lat <= 50 and 80 <= lon <= 120:
-        return "deserts and xeric shrublands"
-    # Southwest USA deserts
-    if 25 <= lat <= 40 and -120 <= lon <= -100:
-        return "deserts and xeric shrublands"
-
-    # --- Mangroves (coastal tropics) ---
-    # (handled by species selection, not auto-detected here)
-
-    # --- Latitude-based biome bands ---
     abs_lat = abs(lat)
 
-    # Boreal / Arctic
+    # ── 1. MANGROVES — coastal tropical/subtropical (check first) ──────────────
+    # Only flag as mangrove if very close to coast (rough heuristic: low elevation
+    # proxy = within known mangrove latitude bands near coastlines)
+    # Key mangrove regions worldwide
+    # Known mangrove hotspot bounding boxes (tighter zones = more coastal)
+    mangrove_hotspots = [
+        (4, 6, -3, 2),        # Ghana / Benin coast (tight coastal strip)
+        (-1, 4, 8, 12),       # Cameroon / Niger Delta
+        (-10, -5, 13, 16),    # Angola coast
+        (-18, -14, 35, 40),   # Mozambique coast
+        (20, 24, 88, 92),     # Sundarbans (Bangladesh/India)
+        (10, 14, 99, 103),    # Thailand / Myanmar coast
+        (1, 2, 103, 105),     # Singapore coast (tight)
+        (-8, -4, 114, 118),   # Java / Borneo coast
+        (-20, -16, -40, -38), # Brazil coast (Bahia)
+        (8, 12, -85, -82),    # Costa Rica / Panama coast
+        (10, 14, -87, -83),   # Honduras / Nicaragua coast
+        (-22, -18, 115, 118), # NW Australia coast
+    ]
+    for lat_min, lat_max, lon_min, lon_max in mangrove_hotspots:
+        if lat_min <= lat <= lat_max and lon_min <= lon <= lon_max:
+            return "mangroves"
+
+    # ── 2. FLOODED GRASSLANDS — specific regions ───────────────────────────────
+    flooded_zones = [
+        (-20, -15, 18, 26),   # Okavango / Zambezi floodplains
+        (-18, -12, 26, 34),   # Bangweulu / Kafue flats
+        (8, 14, 13, 17),      # Lake Chad basin
+        (-20, -10, -65, -55), # Pantanal (Brazil/Bolivia)
+        (25, 30, 85, 92),     # Brahmaputra floodplain
+    ]
+    for lat_min, lat_max, lon_min, lon_max in flooded_zones:
+        if lat_min <= lat <= lat_max and lon_min <= lon <= lon_max:
+            return "flooded grasslands and savannas"
+
+    # ── 3. MONTANE GRASSLANDS ──────────────────────────────────────────────────
+    montane_zones = [
+        (-5, 5, 32, 37),      # East African highlands (Kenya, Uganda, Tanzania)
+        (5, 15, 35, 42),      # Ethiopian highlands
+        (-25, -10, -75, -65), # Andes highlands
+        (25, 35, 80, 100),    # Himalayan foothills
+        (-45, -35, -75, -65), # Patagonian Andes
+    ]
+    for lat_min, lat_max, lon_min, lon_max in montane_zones:
+        if lat_min <= lat <= lat_max and lon_min <= lon <= lon_max:
+            return "montane grasslands and shrublands"
+
+    # ── 4. DESERTS & XERIC SHRUBLANDS ─────────────────────────────────────────
+    desert_zones = [
+        (12, 38, 32, 65),     # Arabian Peninsula / Middle East
+        (15, 35, -18, 40),    # Sahara / North Africa
+        (25, 45, 50, 70),     # Iranian / Central Asian deserts
+        (-35, -15, 115, 145), # Australian outback
+        (-45, -15, -75, -65), # Atacama / Patagonian desert
+        (35, 50, 80, 120),    # Gobi / Central Asian steppe
+        (25, 40, -120, -100), # Southwest USA (Mojave, Sonoran)
+        (20, 30, -18, 20),    # Sahel transition
+    ]
+    for lat_min, lat_max, lon_min, lon_max in desert_zones:
+        if lat_min <= lat <= lat_max and lon_min <= lon <= lon_max:
+            return "deserts and xeric shrublands"
+
+    # ── 5. TROPICAL DRY BROADLEAF ─────────────────────────────────────────────
+    dry_broadleaf_zones = [
+        (10, 25, 68, 88),     # Indian subcontinent dry zone
+        (5, 18, -18, 15),     # West African dry zone (Guinea savanna)
+        (-20, -5, 28, 38),    # East African dry broadleaf (Zambia, Mozambique, not Okavango)
+        (-25, -10, -55, -40), # Brazilian dry forest (Caatinga)
+        (8, 20, -90, -75),    # Central American dry forest
+    ]
+    for lat_min, lat_max, lon_min, lon_max in dry_broadleaf_zones:
+        if lat_min <= lat <= lat_max and lon_min <= lon <= lon_max:
+            return "tropical and subtropical dry broadleaf forests"
+
+    # ── 6. BOREAL / TAIGA ─────────────────────────────────────────────────────
     if abs_lat > 60:
         return "boreal forests/taiga"
+    if 55 <= abs_lat <= 60:
+        if 60 <= lon <= 180 or -180 <= lon <= -90:
+            return "boreal forests/taiga"
 
-    # Tropical band
+    # ── 7. TROPICAL MOIST & GRASSLANDS ────────────────────────────────────────
     if abs_lat <= 23.5:
-        # African savanna belt
+        # African savanna / grassland belt
         if -20 <= lon <= 50 and 5 <= lat <= 20:
             return "tropical and subtropical grasslands"
-        # SE Asia / Pacific islands
+        # South American cerrado / savanna
+        if -65 <= lon <= -40 and -20 <= lat <= -5:
+            return "tropical and subtropical grasslands"
+        # SE Asia moist
         if 90 <= lon <= 180 and -10 <= lat <= 20:
             return "tropical and subtropical moist broadleaf forests"
-        # Amazon / Central Africa / SE Asia moist
+        # Amazon / Congo / SE Asia default
         return "tropical and subtropical moist broadleaf forests"
 
-    # Sub-tropical / temperate band (23.5 - 60)
-    if 23.5 < abs_lat <= 40:
-        # Mediterranean climates
-        if (-10 <= lon <= 40 and 30 <= lat <= 45):  # Mediterranean basin
-            return "mediterranean forests"
-        if (-125 <= lon <= -115 and 30 <= lat <= 40):  # California
-            return "mediterranean forests"
-        if (115 <= lon <= 155 and -40 <= lat <= -30):  # SW Australia
-            return "mediterranean forests"
-        # East Asia / Eastern USA temperate
-        return "temperate broadleaf and mixed forests"
+    # ── 8. MEDITERRANEAN ──────────────────────────────────────────────────────
+    if -10 <= lon <= 40 and 30 <= lat <= 45:
+        return "mediterranean forests"
+    if -125 <= lon <= -115 and 30 <= lat <= 40:
+        return "mediterranean forests"
+    if 115 <= lon <= 155 and -40 <= lat <= -30:
+        return "mediterranean forests"
+    if -75 <= lon <= -68 and -40 <= lat <= -30:   # central Chile
+        return "mediterranean forests"
 
-    # 40-60 degrees
-    if 40 < abs_lat <= 60:
-        # Continental interiors -> boreal tendency
-        if 60 <= lon <= 180 or -180 <= lon <= -90:
+    # ── 9. TEMPERATE ──────────────────────────────────────────────────────────
+    if 23.5 < abs_lat <= 60:
+        if abs_lat >= 50 and (60 <= lon <= 180 or -180 <= lon <= -90):
             return "boreal forests/taiga"
         return "temperate broadleaf and mixed forests"
 
     return "temperate broadleaf and mixed forests"
 
 def eco_to_region(eco):
+    """Map WWF ecoregion name to allometric_equations.csv region value."""
     eco = eco.lower()
-    if "boreal" in eco or "taiga" in eco:
-        return "boreal"
-    elif "temperate" in eco or "montane" in eco:
-        return "temperate"
+    if "boreal" in eco or "taiga" in eco:                return "boreal"
+    elif "temperate" in eco:                              return "temperate"
+    elif "mediterranean" in eco:                         return "mediterranean"
+    elif "desert" in eco or "xeric" in eco:              return "desert"
+    elif "montane" in eco or "alpine" in eco:            return "montane"
+    elif "dry broadleaf" in eco:                         return "dry_tropical"
+    elif "flooded" in eco:                               return "flooded"
+    elif "grassland" in eco or "savanna" in eco:         return "tropical_grassland"
+    elif "mangrove" in eco:                              return "mangrove"
     return "tropical"
 
 def pdf_safe(text):
@@ -319,8 +377,16 @@ for disp in full_list:
         continue
 
 if not filtered_list:
-    st.sidebar.warning("No native species with allometric data for this ecoregion. Showing all regional species.")
+    st.sidebar.warning(
+        f"No native species with allometric data found for **{st.session_state.ecoregion.title()}**. "
+        "Showing all regional species — note these may not be confirmed native to your exact location. "
+        "Consider uploading a custom species CSV with locally verified native species."
+    )
     filtered_list = full_list or ["Tectona grandis (Tectona grandis)"]
+else:
+    st.sidebar.success(
+        f"Showing {len(filtered_list)} confirmed native species for {st.session_state.ecoregion.title()}."
+    )
 
 species_options = filtered_list
 

@@ -376,6 +376,12 @@ for disp in full_list:
     except:
         continue
 
+# Debug info - remove after testing
+st.sidebar.write(f"DEBUG region: `{detected_region}`")
+st.sidebar.write(f"DEBUG full_list size: `{len(full_list)}`")
+st.sidebar.write(f"DEBUG native_species count: `{len(native_species)}`")
+st.sidebar.write(f"DEBUG filtered count: `{len(filtered_list)}`")
+
 if not filtered_list:
     st.sidebar.warning(
         f"No native species with allometric data found for **{st.session_state.ecoregion.title()}**. "

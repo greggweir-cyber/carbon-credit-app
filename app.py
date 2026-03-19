@@ -15,6 +15,31 @@ from carbon_simulator import CarbonCreditSimulator, UPLIFT_CITATIONS
 
 RSR_CITATION = "IPCC 2019 Refinement Vol.4 Ch.4 Table 4.4"
 
+# TerraPod technology uplifts — ISB/EAD/ICBA trial, Abu Dhabi, Nov 2024
+# Reference: EAD/EQS/2024/1935 — Completion of Trial on ISB Technology
+TERRAPOD_CITATION = (
+    "ISB/EAD/ICBA Pre-Optimisation Phase (POP) Trial, Abu Dhabi, Nov 2024. "
+    "Ref: EAD/EQS/2024/1935. Certified by Environment Agency Abu Dhabi."
+)
+TERRAPOD_UPLIFTS = {
+    "seedball_outdoor": {
+        "label"         : "TerraPod (outdoor deployment)",
+        "germination"   : 0.82,    # 82% vs 6% traditional outdoor
+        "survival_yr1"  : 0.92,    # 92% 60-day survival rate
+        "annual_mortality_mult": 0.40,  # ~60% reduction in ongoing mortality
+        "water_saving"  : 0.80,    # 80% less water than traditional
+        "dbh_growth_mult": 1.20,   # estimated +20% DBH growth from biocarbon soil
+    },
+    "seedball_greenhouse": {
+        "label"         : "TerraPod (greenhouse + outdoor)",
+        "germination"   : 0.90,
+        "survival_yr1"  : 0.93,
+        "annual_mortality_mult": 0.35,
+        "water_saving"  : 0.83,
+        "dbh_growth_mult": 1.25,
+    },
+}
+
 st.set_page_config(
     page_title="VCS Reforestation Carbon Estimator",
     page_icon="🌳",
@@ -337,6 +362,33 @@ use_biochar      = st.sidebar.checkbox("Biochar (+10% growth, +5 tC/ha soil)",
 use_weed_control = st.sidebar.checkbox("Weed/invasive control", value=True)
 use_fencing      = st.sidebar.checkbox("Fencing/exclosure")
 
+st.sidebar.subheader("TerraPod Technology")
+st.sidebar.caption("ISB planting technology — EAD/ICBA certified trial, UAE Nov 2024")
+terrapod_option = st.sidebar.selectbox(
+    "Deployment method",
+    options=["None (standard planting)",
+             "TerraPod (outdoor)",
+             "TerraPod (greenhouse + outdoor)"],
+    index=1,
+)
+terrapod_key = {
+    "None (standard planting)"        : None,
+    "TerraPod (outdoor)"              : "seedball_outdoor",
+    "TerraPod (greenhouse + outdoor)" : "seedball_greenhouse",
+}[terrapod_option]
+
+if terrapod_key:
+    tp = TERRAPOD_UPLIFTS[terrapod_key]
+    st.sidebar.info(
+        f"**{tp['label']}**\n\n"
+        f"- Germination: {tp['germination']*100:.0f}%\n"
+        f"- Year-1 survival: {tp['survival_yr1']*100:.0f}%\n"
+        f"- Water saving: {tp['water_saving']*100:.0f}%\n"
+        f"- Growth uplift: +{(tp['dbh_growth_mult']-1)*100:.0f}% DBH\n"
+        f"- Mortality reduction: {(1-tp['annual_mortality_mult'])*100:.0f}%\n\n"
+        f"*Cite: {TERRAPOD_CITATION[:80]}...*"
+    )
+
 active_uplifts = []
 if use_irrigation: active_uplifts.append("Irrigation +15%")
 if use_nutrients:  active_uplifts.append("Nutrients +10%")
@@ -350,6 +402,7 @@ management = {
     "biochar"     : use_biochar,
     "weed_control": use_weed_control,
     "fencing"     : use_fencing,
+    "terrapod"    : terrapod_key,
 }
 
 st.sidebar.subheader("Species")
@@ -433,9 +486,19 @@ if st.sidebar.button("Calculate Carbon Credits", type="primary") and total_pct =
                     "density"     : spec["density"],
                 })
 
+            # Apply TerraPod uplifts if selected
+            effective_mortality = mortality
+            terrapod_info = None
+            if terrapod_key:
+                tp = TERRAPOD_UPLIFTS[terrapod_key]
+                effective_mortality = mortality * tp["annual_mortality_mult"]
+                # Apply growth uplift via management
+                management["terrapod_growth_mult"] = tp["dbh_growth_mult"]
+                terrapod_info = tp
+
             results      = sim.simulate_project(
                 area_ha=area_ha, species_mix=species_mix,
-                project_years=project_years, annual_mortality=mortality,
+                project_years=project_years, annual_mortality=effective_mortality,
                 management=management,
             )
             # Carbon stock at END of crediting period (not sum of annual stocks)
@@ -461,6 +524,14 @@ if st.sidebar.button("Calculate Carbon Credits", type="primary") and total_pct =
 
             if active_uplifts:
                 st.info(f"Management uplifts: {' | '.join(active_uplifts)}")
+            if terrapod_info:
+                st.success(
+                    f"**TerraPod Technology Applied:** {terrapod_info['label']} | "
+                    f"Mortality reduced {(1-terrapod_info['annual_mortality_mult'])*100:.0f}% | "
+                    f"Growth +{(terrapod_info['dbh_growth_mult']-1)*100:.0f}% | "
+                    f"Water saving {terrapod_info['water_saving']*100:.0f}% | "
+                    f"*Cite: EAD/EQS/2024/1935*"
+                )
 
             st.subheader("Cumulative Carbon Accumulation")
             # Chart: biomass stock at each year + cumulative soil
@@ -504,6 +575,13 @@ if st.sidebar.button("Calculate Carbon Credits", type="primary") and total_pct =
                 if use_irrigation: st.write(f"**Irrigation:** {UPLIFT_CITATIONS['irrigation']}")
                 if use_biochar:    st.write(f"**Biochar:** {UPLIFT_CITATIONS['biochar']}")
                 if use_nutrients:  st.write(f"**Nutrients:** {UPLIFT_CITATIONS['nutrients']}")
+                if terrapod_key:
+                    tp = TERRAPOD_UPLIFTS[terrapod_key]
+                    st.write(f"**TerraPod ({tp['label']}):** Germination {tp['germination']*100:.0f}%, "
+                             f"Year-1 survival {tp['survival_yr1']*100:.0f}%, "
+                             f"Mortality -{(1-tp['annual_mortality_mult'])*100:.0f}%, "
+                             f"Growth +{(tp['dbh_growth_mult']-1)*100:.0f}%")
+                    st.write(f"**TerraPod citation:** {TERRAPOD_CITATION}")
 
             pdf_bytes = generate_pdf_report(
                 area_ha, species_mix, gross_total, buffer_pct,

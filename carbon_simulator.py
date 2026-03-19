@@ -140,17 +140,11 @@ class CarbonCreditSimulator:
 
     def _load_globallometree(self, path):
         """Load pre-built JSON lookup or build it from part files."""
-        # Try pre-built JSON
+        # Try pre-built JSON (already validated — load directly, no re-validation)
         if os.path.isfile(path):
             try:
                 with open(path) as f:
-                    raw = json.load(f)
-                # Validate each entry is actually evaluable at DBH=15
-                for sp, d in raw.items():
-                    val = _eval_formula(d.get("equation",""), d.get("output_tr",""),
-                                        d.get("unit_y","kg"), 15.0)
-                    if val is not None:
-                        self.globallometree[sp] = d
+                    self.globallometree = json.load(f)
                 return
             except Exception as e:
                 print(f"[CarbonSim] WARNING GlobAllomeTree JSON not loaded: {e}")

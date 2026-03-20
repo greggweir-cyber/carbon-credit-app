@@ -338,6 +338,81 @@ if map_data and map_data.get("last_clicked"):
     st.session_state.lon       = map_data["last_clicked"]["lng"]
     st.session_state.ecoregion = get_ecoregion(st.session_state.lat, st.session_state.lon)
 
+# ── Country-specific data panel ───────────────────────────────────────────────
+COUNTRY_DATA = {
+    "morocco": {"country": "Morocco", "country_code": "MA", "source": {"title": "Flore Endémique du Maroc — Sélection pour reforestation et renaturation", "author": "Pr. Abdelkader Taleb", "institution": "IAV Hassan II, Rabat", "year": 2026, "publisher": "Atelier Jardins", "reference": "Taleb, A. (2026). Flore Endémique du Maroc: Sélection pour reforestation et renaturation. Atelier Jardins S.A.S.", "based_on": "Flore pratique du Maroc, Fennane & al. (1999-2015)"}, "geographic_zones": {"Ms": "Maroc saharien", "As": "Atlas saharien", "AA": "Anti-Atlas", "HA": "Haut Atlas", "MA": "Moyen Atlas", "Mam": "Maroc atlantique moyen", "Man": "Maroc atlantique nord", "Op": "Plateaux du Maroc oriental", "Om": "Monts du Maroc oriental", "LM": "Littoral de la Méditerranée", "R": "Rif"}, "ecoregion_mapping": {"mediterranean forests": ["R", "MA", "HA", "Man", "LM", "Mam"], "deserts and xeric shrublands": ["Ms", "AA", "As"], "montane grasslands and shrublands": ["HA", "MA", "AA"], "temperate broadleaf and mixed forests": ["MA", "R", "HA"]}, "species": {"Quercus rotundifolia": {"common_fr": "Chêne vert", "common_en": "Holm Oak", "family": "Fagaceae", "endemic": false, "height_m": [5, 20], "width_m": [5, 12], "growth_rate": "slow", "dbh_growth_mm_yr": 5.5, "drought_resistance": "very_high", "salinity_tolerance": "low", "zones": ["all except Ms and Op"], "planting_density_m": "6x6", "stems_per_ha": 278, "water_need": "very_low", "associated_species": ["Pistacia lentiscus", "Arbutus unedo", "Pistacia atlantica"], "rooting": "deep_taproot", "soil": "poor calcareous", "uses": ["timber", "edible_acorn", "ornamental"], "carbon_notes": "Long-lived, high wood density, major carbon store in Moroccan forests"}, "Quercus suber": {"common_fr": "Chêne-liège", "common_en": "Cork Oak", "family": "Fagaceae", "endemic": false, "height_m": [6, 20], "width_m": [5, 12], "growth_rate": "slow_moderate", "dbh_growth_mm_yr": 7.0, "drought_resistance": "high", "salinity_tolerance": "low", "zones": ["LM", "R", "HA", "MA", "Man", "Om"], "planting_density_m": "7x7", "stems_per_ha": 204, "water_need": "moderate", "associated_species": ["Erica arborea", "Cistus ladanifer", "Arbutus unedo"], "rooting": "very_deep_taproot", "soil": "acidic poor (calcifuge)", "uses": ["cork", "timber", "edible_acorn"], "carbon_notes": "High commercial value, cork harvest does not kill tree, ideal for CCB projects"}, "Tetraclinis articulata": {"common_fr": "Thuya de Barbarie", "common_en": "Barbary Thuja", "family": "Cupressaceae", "endemic": true, "height_m": [6, 15], "width_m": [3, 6], "growth_rate": "slow", "dbh_growth_mm_yr": 5.5, "drought_resistance": "very_high", "salinity_tolerance": "low", "zones": ["AA", "HA", "MA", "Mam", "Man", "Op", "Om", "LM", "R"], "planting_density_m": "4x4", "stems_per_ha": 625, "water_need": "very_low", "associated_species": ["Juniperus phoenicea", "Pistacia atlantica", "Pistacia lentiscus"], "rooting": "deep_taproot", "soil": "calcareous poor", "uses": ["timber", "resin"], "carbon_notes": "Endemic to Morocco/Algeria. Key species for Moroccan dry forest restoration. High density planting possible."}, "Pistacia atlantica": {"common_fr": "Pistachier de l'Atlas", "common_en": "Atlas Pistachio", "family": "Anacardiaceae", "endemic": false, "height_m": [5, 20], "width_m": [5, 10], "growth_rate": "slow", "dbh_growth_mm_yr": 5.5, "drought_resistance": "very_high", "salinity_tolerance": "low", "zones": ["all Morocco"], "planting_density_m": "6x6", "stems_per_ha": 278, "water_need": "very_low", "associated_species": ["Juniperus phoenicea", "Tetraclinis articulata"], "rooting": "very_deep_taproot", "soil": "poor calcareous", "uses": ["edible_fruit", "timber", "ornamental"], "carbon_notes": "Extremely long-lived (1000+ years). Deep taproot. Nationwide distribution makes it ideal anchor species."}, "Cupressus atlantica": {"common_fr": "Cyprès de l'Atlas", "common_en": "Atlas Cypress", "family": "Cupressaceae", "endemic": true, "height_m": [10, 20], "width_m": [3, 6], "growth_rate": "slow_moderate", "dbh_growth_mm_yr": 7.0, "drought_resistance": "high", "salinity_tolerance": "low", "zones": ["HA"], "planting_density_m": "5x5", "stems_per_ha": 400, "water_need": "low", "associated_species": ["Juniperus phoenicea", "Tetraclinis articulata"], "rooting": "deep_taproot", "soil": "varied, not calcaire", "uses": ["timber", "windbreak"], "carbon_notes": "Critically endangered endemic. Reforestation projects in High Atlas eligible for biodiversity co-benefits (CCB)."}, "Sideroxylon spinosum": {"common_fr": "Arganier", "common_en": "Argan Tree", "family": "Sapotaceae", "endemic": true, "height_m": [3, 10], "width_m": [3, 7], "growth_rate": "slow", "dbh_growth_mm_yr": 5.5, "drought_resistance": "extreme", "salinity_tolerance": "low", "zones": ["Ms", "AA", "HA", "Mam", "LM"], "planting_density_m": "8x8", "stems_per_ha": 156, "water_need": "low", "associated_species": ["Ziziphus lotus", "Euphorbia resinifera"], "rooting": "exceptional_deep_5_10m", "soil": "arid calcareous", "uses": ["edible_oil", "cosmetic", "timber"], "carbon_notes": "UNESCO Biosphere Reserve species. Root system 5-10m depth documented. Exceptional drought tolerance. Strong co-benefit case for CCB."}, "Olea europaea subsp. oleaster": {"common_fr": "Olivier sauvage", "common_en": "Wild Olive", "family": "Oleaceae", "endemic": false, "height_m": [3, 10], "width_m": [3, 6], "growth_rate": "slow", "dbh_growth_mm_yr": 5.5, "drought_resistance": "very_high", "salinity_tolerance": "low", "zones": ["all except Saharan zones"], "planting_density_m": "6x6", "stems_per_ha": 278, "water_need": "very_low", "associated_species": ["Quercus ilex", "Pistacia lentiscus"], "rooting": "deep_taproot", "soil": "poor calcareous", "uses": ["rootstock_cultivated_olive", "timber", "ornamental"], "carbon_notes": "Extremely long-lived. Used as rootstock for cultivated olive. High cultural/biodiversity value in Morocco."}, "Juniperus phoenicea": {"common_fr": "Genévrier de Phénicie", "common_en": "Phoenician Juniper", "family": "Cupressaceae", "endemic": false, "height_m": [2, 8], "width_m": [2, 5], "growth_rate": "slow", "dbh_growth_mm_yr": 5.5, "drought_resistance": "very_high", "salinity_tolerance": "high", "zones": ["As", "AA", "HA", "MA", "Mam", "Man", "Om", "LM", "R"], "planting_density_m": "4x4", "stems_per_ha": 625, "water_need": "very_low", "associated_species": ["Pistacia lentiscus", "Pinus halepensis", "Tetraclinis articulata"], "rooting": "deep_taproot_lateral", "soil": "calcareous rocky", "uses": ["stabilisation", "timber", "windbreak"], "carbon_notes": "Excellent pioneer species for degraded land. Nationwide distribution. Supports soil stabilisation before climax species establish."}, "Argyrocytisus battandieri": {"common_fr": "Genêt de Battandier", "common_en": "Moroccan Broom", "family": "Fabaceae", "endemic": true, "height_m": [2, 4], "width_m": [2, 3], "growth_rate": "moderate", "dbh_growth_mm_yr": 8.5, "drought_resistance": "high", "salinity_tolerance": "none", "zones": ["MA", "R"], "planting_density_m": "2x2", "stems_per_ha": 2500, "water_need": "low", "nitrogen_fixing": true, "associated_species": ["Tetraclinis articulata", "Juniperus phoenicea"], "rooting": "deep_taproot", "soil": "sandy calcareous", "uses": ["ornamental", "melliferous"], "carbon_notes": "Endemic nitrogen-fixer. Improves soil for companion species. Key understorey component in Moroccan mixed forest restoration."}, "Pistacia lentiscus": {"common_fr": "Lentisque", "common_en": "Lentisk/Mastic", "family": "Anacardiaceae", "endemic": false, "height_m": [1, 5], "width_m": [2, 5], "growth_rate": "slow_moderate", "dbh_growth_mm_yr": 7.0, "drought_resistance": "very_high", "salinity_tolerance": "very_high", "zones": ["As", "AA", "HA", "MA", "Mam", "Man", "Om", "LM", "R"], "planting_density_m": "2x2", "stems_per_ha": 2500, "water_need": "low", "associated_species": ["Olea europaea", "Cistus monspeliensis", "Quercus ilex"], "rooting": "deep_taproot", "soil": "calcareous rocky poor", "uses": ["resin_mastic", "timber", "melliferous"], "carbon_notes": "Extremely salt and drought tolerant. Important understorey species. High planting density adds significant shrub-layer carbon."}}, "recommended_mixes": {"northern_morocco_rif": {"label": "Rif / Northern Atlantic (R, Man, LM)", "description": "Mixed oak-myrtle-lentisk forest typical of northern Morocco", "species_mix": [{"species": "Quercus suber", "pct": 30, "role": "canopy"}, {"species": "Quercus rotundifolia", "pct": 20, "role": "canopy"}, {"species": "Arbutus unedo", "pct": 15, "role": "sub-canopy"}, {"species": "Pistacia lentiscus", "pct": 20, "role": "understorey"}, {"species": "Myrtus communis", "pct": 15, "role": "understorey"}], "density_stems_ha": 800}, "atlas_mountains": {"label": "Middle/High Atlas (MA, HA)", "description": "Thuya-juniper-pistachio forest of the Atlas", "species_mix": [{"species": "Tetraclinis articulata", "pct": 35, "role": "canopy"}, {"species": "Juniperus phoenicea", "pct": 25, "role": "canopy"}, {"species": "Pistacia atlantica", "pct": 20, "role": "canopy"}, {"species": "Argyrocytisus battandieri", "pct": 20, "role": "understorey_N-fix"}], "density_stems_ha": 700}, "argan_zone": {"label": "Argan Zone (Souss, AA, SW Morocco)", "description": "Argan-euphorbia-ziziphus arid woodland", "species_mix": [{"species": "Sideroxylon spinosum", "pct": 50, "role": "canopy"}, {"species": "Pistacia atlantica", "pct": 25, "role": "canopy"}, {"species": "Olea europaea subsp. oleaster", "pct": 25, "role": "canopy"}], "density_stems_ha": 300}, "nationwide_pioneer": {"label": "Pioneer mix (degraded land, any zone)", "description": "Fast-establishing native mix for degraded/eroded land", "species_mix": [{"species": "Juniperus phoenicea", "pct": 30, "role": "pioneer"}, {"species": "Pistacia lentiscus", "pct": 30, "role": "pioneer"}, {"species": "Tetraclinis articulata", "pct": 25, "role": "canopy"}, {"species": "Argyrocytisus battandieri", "pct": 15, "role": "N-fixer"}], "density_stems_ha": 900}}, "biodiversity_notes": {"endemic_count": 6, "endemic_species": ["Cupressus atlantica", "Tetraclinis articulata", "Sideroxylon spinosum", "Argyrocytisus battandieri", "Chamaecytisus mollis", "Euphorbia resinifera"], "ccb_relevance": "Morocco has 6 endemic tree/shrub species in this study eligible for CCB biodiversity co-benefits", "iucn_notes": "Cupressus atlantica is critically endangered. Sideroxylon spinosum (Argan) is a UNESCO Biosphere Reserve species.", "pollinator_value": "15 of 16 species are melliferous — strong co-benefit case for pollinator habitat"}}
+}
+
+def detect_country(lat, lon):
+    """Rough bounding box detection for country-specific data."""
+    if 27.5 <= lat <= 35.9 and -13.2 <= lon <= -1.0:
+        return "morocco"
+    return None
+
+detected_country = detect_country(st.session_state.lat, st.session_state.lon)
+
+if detected_country and detected_country in COUNTRY_DATA:
+    cd = COUNTRY_DATA[detected_country]
+    with st.expander(f"📚 Site-Specific Data — {cd['country']} ({cd['source']['author']}, {cd['source']['year']})", expanded=True):
+        src = cd["source"]
+        st.info(
+            f"**{src['title']}**  \n"
+            f"{src['author']} · {src['institution']} · {src['year']}  \n"
+            f"*{src['reference']}*"
+        )
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Native species documented", len(cd["species"]))
+        col2.metric("Endemic species", cd["biodiversity_notes"]["endemic_count"])
+        col3.metric("Melliferous species", "15/16")
+
+        st.caption(cd["biodiversity_notes"]["ccb_relevance"])
+
+        # Recommended species mixes
+        st.subheader("Recommended Native Species Mixes")
+        mix_names = list(cd["recommended_mixes"].keys())
+        selected_mix_key = st.selectbox(
+            "Select mix for your project zone",
+            options=mix_names,
+            format_func=lambda k: cd["recommended_mixes"][k]["label"],
+            key="morocco_mix"
+        )
+        selected_mix = cd["recommended_mixes"][selected_mix_key]
+        st.caption(selected_mix["description"])
+        st.caption(f"Recommended density: {selected_mix['density_stems_ha']} stems/ha")
+
+        mix_rows = []
+        for item in selected_mix["species_mix"]:
+            sp_data = cd["species"].get(item["species"], {})
+            mix_rows.append({
+                "Species": item["species"],
+                "Common name": sp_data.get("common_en", ""),
+                "Mix %": f"{item['pct']}%",
+                "Role": item["role"],
+                "Growth": sp_data.get("growth_rate", ""),
+                "Drought": sp_data.get("drought_resistance", ""),
+                "Endemic": "🌿" if sp_data.get("endemic") else "",
+            })
+        import pandas as pd
+        st.table(pd.DataFrame(mix_rows))
+
+        # Endemic species highlight
+        st.subheader("Endemic & High-Value Species")
+        for sp_name, sp_data in cd["species"].items():
+            if sp_data.get("endemic") or sp_name in ["Sideroxylon spinosum", "Pistacia atlantica"]:
+                with st.container():
+                    c1, c2 = st.columns([1, 3])
+                    c1.markdown(f"**{sp_data['common_en']}**  \n*{sp_name}*  \n{'🌿 Endemic' if sp_data.get('endemic') else ''}")
+                    c2.markdown(
+                        f"Height: {sp_data['height_m'][0]}-{sp_data['height_m'][1]}m · "
+                        f"Growth: {sp_data['growth_rate']} · "
+                        f"Drought: {sp_data['drought_resistance']}  \n"
+                        f"{sp_data.get('carbon_notes','')}"
+                    )
+
+        st.caption(f"Source: {src['based_on']}")
+    st.divider()
+
 st.sidebar.header("Project Parameters")
 st.sidebar.info(f"Ecoregion detected:\n**{st.session_state.ecoregion.title()}**")
 detected_region = eco_to_region(st.session_state.ecoregion)
@@ -362,6 +437,30 @@ use_biochar      = st.sidebar.checkbox("Biochar (+10% growth, +5 tC/ha soil)",
                                         help="Jeffery et al. 2017")
 use_weed_control = st.sidebar.checkbox("Weed/invasive control", value=True)
 use_fencing      = st.sidebar.checkbox("Fencing/exclosure")
+
+st.sidebar.subheader("Managed Restoration Protocol")
+st.sidebar.caption("ISB intensive management — documented protocols")
+use_managed_restoration = st.sidebar.checkbox(
+    "Intensive managed restoration",
+    value=True,
+    help=(
+        "Applies phased mortality model based on ISB protocol:\n"
+        "Yrs 1-2: 0% net mortality (immediate replanting)\n"
+        "Yrs 3-4: 0.5% mortality (irrigation weaning)\n"
+        "Yrs 5+:  1.5% mortality (established trees, MRV continues)\n"
+        "Requires: soil preparation per hole, drip irrigation with moisture sensors, "
+        "drone/satellite MRV, immediate dead-tree replacement."
+    )
+)
+if use_managed_restoration:
+    st.sidebar.success(
+        "Active: 0% → 0.5% → 1.5% phased mortality\n"
+        "Irrigation weaned off at Year 4\n"
+        "Continuous drone & satellite MRV (40yr)"
+    )
+    mrvdiscount = 10  # continuous MRV justifies 10% vs 20%
+else:
+    mrvdiscount = 20
 
 st.sidebar.subheader("TerraPod Technology")
 st.sidebar.caption("ISB planting technology — EAD/ICBA certified trial, UAE Nov 2024")
@@ -969,6 +1068,7 @@ if st.sidebar.button("Calculate Carbon Credits", type="primary") and total_pct =
                 area_ha=area_ha, species_mix=species_mix,
                 project_years=project_years, annual_mortality=effective_mortality,
                 management=management,
+                managed_restoration=use_managed_restoration,
             )
             # Carbon stock at END of crediting period (not sum of annual stocks)
             final         = results[-1]
@@ -977,19 +1077,19 @@ if st.sidebar.button("Calculate Carbon Credits", type="primary") and total_pct =
             gross_total   = gross_biomass + gross_soil
             buffer_held   = gross_total * (buffer_pct / 100.0)
             net_total     = gross_total * (1 - buffer_pct / 100.0)
-            net_vcs       = net_total  # 20% uncertainty discount available but not applied here
+            net_vcs       = net_total * (1 - mrvdiscount / 100.0)
 
             audit = sim.get_audit_trail(
                 species_mix, management, area_ha, project_years, mortality, buffer_pct
             )
 
-            st.success(f"Estimated Net VCUs (after {buffer_pct}% buffer): **{net_vcs:,.0f} tCO2e**")
+            st.success(f"Estimated Net VCUs (after {buffer_pct}% buffer + {mrvdiscount}% MRV discount): **{net_vcs:,.0f} tCO2e**")
 
             col1, col2, col3, col4 = st.columns(4)
-            col1.metric("Gross tCO2e",        f"{gross_total:,.0f}")
-            col2.metric("Buffer held",         f"{buffer_held:,.0f}")
-            col3.metric("Net VCUs (est.)",     f"{net_total:,.0f}")
-            col4.metric("Net after buffer",    f"{net_vcs:,.0f}")
+            col1.metric("Gross tCO2e",              f"{gross_total:,.0f}")
+            col2.metric("Buffer held",               f"{buffer_held:,.0f}")
+            col3.metric("Net (pre-discount)",         f"{net_total:,.0f}")
+            col4.metric(f"Net VCUs (-{mrvdiscount}% MRV)", f"{net_vcs:,.0f}")
 
             if active_uplifts:
                 st.info(f"Management uplifts: {' | '.join(active_uplifts)}")
@@ -1039,7 +1139,17 @@ if st.sidebar.button("Calculate Carbon Credits", type="primary") and total_pct =
                 st.write(f"**Below-ground biomass (BGB):** Included via root-to-shoot ratio (RSR) - Total biomass = AGB x (1 + RSR)")
                 st.write(f"**RSR ({detected_region}):** {rsr_val} - {RSR_CITATION}")
                 st.write(f"**BGB carbon pool:** Fully accounted for in all sequestration estimates per VCS AR-ACM0003 requirements")
-                st.write(f"**Uncertainty discount:** 20% available per VCS Uncertainty & Variance Policy v4 (not applied to estimates shown)")
+                st.write(f"**Uncertainty discount:** {mrvdiscount}% applied — " +
+                             ("continuous drone/satellite MRV justifies 10% per VCS Uncertainty Policy v4" 
+                              if use_managed_restoration else 
+                              "standard 20% per VCS Uncertainty & Variance Policy v4"))
+                if use_managed_restoration:
+                    st.write("**Managed restoration protocol:**")
+                    st.write("- Yrs 1-2: 0% net mortality — immediate replanting, 100% survival maintained")
+                    st.write("- Yrs 3-4: 0.5% mortality — irrigation weaning, TerraPod transition")
+                    st.write("- Yrs 5+:  1.5% mortality — established native forest, MRV only")
+                    st.write("- Continuous drone & satellite MRV for full 40-year crediting period")
+                    st.write("- Cite: ISB managed restoration protocol / EAD/EQS/2024/1935")
                 st.write(f"**Buffer pool:** {buffer_pct}% - user selected (VCS min 10%)")
                 if use_irrigation: st.write(f"**Irrigation:** {UPLIFT_CITATIONS['irrigation']}")
                 if use_biochar:    st.write(f"**Biochar:** {UPLIFT_CITATIONS['biochar']}")

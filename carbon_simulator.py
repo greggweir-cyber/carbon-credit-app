@@ -1,5 +1,5 @@
 """
-CarbonCreditSimulator v3 — GlobAllomeTree + IPCC 2019
+CarbonCreditSimulator v4 — GlobAllomeTree + IPCC 2019 + Phased Mortality + VM0047
 ======================================================
 Equation priority:
   Tier 1: GlobAllomeTree (18,499 raw equations → 888 validated DBH-only species)
@@ -457,14 +457,21 @@ class CarbonCreditSimulator:
 
     def simulate_project(
         self,
-        area_ha        : float,
-        species_mix    : list,
-        project_years  : int  = 40,
-        annual_mortality: float = 0.04,
-        management     : dict = None,
+        area_ha             : float,
+        species_mix         : list,
+        project_years       : int   = 40,
+        annual_mortality    : float = 0.04,
+        management          : dict  = None,
+        managed_restoration : bool  = False,
     ) -> list:
         """
         Simulate year-by-year carbon accumulation.
+
+        managed_restoration=True applies phased mortality model:
+          Years 1-2:  0% mortality (immediate replanting, 100% survival)
+          Years 3-4:  0.5% mortality (transition, irrigation weaning)
+          Years 5+:   1.5% mortality (independent, MRV continues)
+          Irrigation uplift removed after year 4.
 
         Returns list of annual result dicts, each containing:
           year, trees_total, biomass_t, carbon_t,
@@ -521,12 +528,36 @@ class CarbonCreditSimulator:
         for year in range(1, project_years + 1):
             total_biomass_kg = 0.0
 
+            # Phased mortality and management for managed restoration projects
+            if managed_restoration:
+                if year <= 2:
+                    # Intensive phase: immediate replanting = 0% net mortality
+                    year_mortality = 0.0
+                    year_mgmt = dict(management)   # full uplifts
+                elif year <= 4:
+                    # Transition phase: irrigation weaning, light replanting
+                    year_mortality = 0.005
+                    year_mgmt = dict(management)
+                    year_mgmt["irrigation"] = False  # irrigation weaned off
+                else:
+                    # Independent phase: established trees, MRV only
+                    # Trees are self-sustaining but keep TerraPod biochar benefit
+                    year_mortality = 0.015
+                    year_mgmt = dict(management)
+                    year_mgmt["irrigation"] = False  # no irrigation needed
+                    year_mgmt["nutrients"]  = False  # no added nutrients
+                    # Note: biochar stays active (17,000yr longevity per PNNL study)
+                    # TerraPod growth multiplier remains (established root system)
+            else:
+                year_mortality = annual_mortality
+                year_mgmt = management
+
             for c in cohorts:
                 if c["count"] <= 0:
                     continue
 
                 # Mortality
-                effective_mort = max(0.0, annual_mortality / surv_mult)
+                effective_mort = max(0.0, year_mortality / surv_mult)
                 survivors = max(0, int(c["count"] * (1.0 - effective_mort)))
 
                 if survivors < len(c["dbh_arr"]):
@@ -538,7 +569,7 @@ class CarbonCreditSimulator:
 
                 # Growth
                 growth_mm = self._get_dbh_growth_mm(
-                    c["species"], c["region"], management
+                    c["species"], c["region"], year_mgmt
                 )
                 c["dbh_arr"] = c["dbh_arr"] + (growth_mm / 10.0)
 

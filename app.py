@@ -221,7 +221,7 @@ def generate_pdf_report(area_ha, species_mix, gross_credits, buffer_pct,
     pdf.set_font("Arial", "B", 16)
     pdf.cell(0, 10, "VCS Reforestation Carbon Credit Report", ln=True, align="C")
     pdf.set_font("Arial", "", 10)
-    pdf.cell(0, 6, pdf_safe(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}  |  Methodology: Verra AR-ACM0003"), ln=True, align="C")
+    pdf.cell(0, 6, pdf_safe(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}  |  Methodology: Verra VM0047"), ln=True, align="C")
     pdf.ln(4)
 
     net_credits   = gross_credits * (1 - buffer_pct / 100.0)
@@ -277,7 +277,7 @@ def generate_pdf_report(area_ha, species_mix, gross_credits, buffer_pct,
         ("Carbon fraction",    "0.47",  "IPCC 2006 Table 4.3"),
         ("CO2e factor",        "3.67",  "Molecular weight C:CO2"),
         ("AGB",                "Species-specific allometric equations", "GlobAllomeTree / project dataset"),
-        ("BGB included",       "Yes - Total biomass = AGB x (1 + RSR)", "VCS AR-ACM0003 required carbon pool"),
+        ("BGB included",       "Yes - Total biomass = AGB x (1 + RSR)", "VCS VM0047 required carbon pool"),
         ("RSR tropical",       "0.235", "IPCC 2019 Table 4.4"),
         ("RSR temperate",      "0.192", "IPCC 2019 Table 4.4"),
         ("RSR boreal",         "0.390", "IPCC 2019 Table 4.4"),
@@ -309,7 +309,7 @@ def generate_pdf_report(area_ha, species_mix, gross_credits, buffer_pct,
 
 # ── App ────────────────────────────────────────────────────────────────────────
 st.title("🌳 VCS Reforestation Carbon Credit Estimator")
-st.caption("Verra AR-ACM0003  |  GlobAllomeTree equations  |  IPCC 2019 RSR  |  VVB-defensible audit trail")
+st.caption("Verra VM0047 (Soil + Vegetation Carbon)  |  GlobAllomeTree equations  |  IPCC 2019 RSR  |  VVB-defensible audit trail")
 
 try:
     species_df = load_species_data()
@@ -700,7 +700,7 @@ REGIONAL_BENCHMARKS_PRECOMPUTED = {
     },
     "mediterranean forests": {
         "low_gross": 16881,
-        "medium_gross": 66797,
+        "medium_gross": 65007,
         "high_gross": 131997,
         "low_species": [
             "Fraxinus ornus",
@@ -723,6 +723,7 @@ REGIONAL_BENCHMARKS_PRECOMPUTED = {
             "Pinus pinea",
             "Pinus pinaster",
             "Ceratonia siliqua",
+            "Olea europaea",
             "Pistacia lentiscus",
             "Arbutus unedo",
             "Abies pinsapo",
@@ -734,25 +735,25 @@ REGIONAL_BENCHMARKS_PRECOMPUTED = {
             "Cedrus atlantica",
             "Cedrus libani"
         ],
-        "n_species": 16,
+        "n_species": 17,
         "density": 900,
         "region": "mediterranean"
     },
     "montane grasslands and shrublands": {
-        "low_gross": 9417,
-        "medium_gross": 16047,
-        "high_gross": 20831,
+        "low_gross": 9794,
+        "medium_gross": 16214,
+        "high_gross": 20874,
         "low_species": [
             "Prunus africana",
             "Alnus acuminata",
             "Rhododendron arboreum",
             "Juniperus procera",
-            "Olea europaea subsp. cuspidata"
+            "Podocarpus glomeratus"
         ],
         "high_species": [
-            "Gynoxys caracasana",
             "Polylepis racemosa",
             "Hypericum lanceolatum",
+            "Olea europaea subsp. cuspidata",
             "Erica arborea",
             "Abies spectabilis"
         ],
@@ -761,7 +762,6 @@ REGIONAL_BENCHMARKS_PRECOMPUTED = {
             "Alnus acuminata",
             "Rhododendron arboreum",
             "Juniperus procera",
-            "Olea europaea subsp. cuspidata",
             "Podocarpus glomeratus",
             "Hagenia abyssinica",
             "Rapanea melanophloeos",
@@ -770,6 +770,7 @@ REGIONAL_BENCHMARKS_PRECOMPUTED = {
             "Gynoxys caracasana",
             "Polylepis racemosa",
             "Hypericum lanceolatum",
+            "Olea europaea subsp. cuspidata",
             "Erica arborea",
             "Abies spectabilis"
         ],
@@ -999,28 +1000,30 @@ bm_data = REGIONAL_BENCHMARKS_PRECOMPUTED.get(eco_key)
 if bm_data:
     try:
         # Scale from 100ha baseline to actual area
-        area_scale    = area_ha / 100.0
-        # Scale from 40yr baseline to actual project years
-        year_scale    = project_years / 40.0
-        # Management uplift multiplier on top of TerraPod baseline
+        # Scale from 100ha/40yr precomputed baseline
+        area_scale = area_ha / 100.0
+        year_scale = project_years / 40.0
+        # Management uplifts ON TOP of TerraPod baseline already in precomputed numbers
         mgmt_mult = 1.0
         if use_irrigation: mgmt_mult *= 1.15
         if use_nutrients:  mgmt_mult *= 1.10
         if use_biochar:    mgmt_mult *= 1.10
-        # TerraPod vs no TerraPod
-        tp      = TERRAPOD_UPLIFTS.get(terrapod_key or "seedball_outdoor", {})
+        # TerraPod selection — if no TerraPod selected, reduce by inverse of baseline
+        tp = TERRAPOD_UPLIFTS.get(terrapod_key or "seedball_outdoor", {})
         tp_grow = tp.get("dbh_growth_mult", 1.20)
-        tp_mort = tp.get("annual_mortality_mult", 0.40)
-        # TerraPod baseline already baked into pre-computed numbers
-        # Additional management on top
-        total_mult = mgmt_mult * area_scale * year_scale
+        # If user selects NO terrapod, divide out the 1.20 growth uplift baked in
+        if not terrapod_key:
+            tp_adjust = 1.0 / 1.20
+        else:
+            tp_adjust = tp_grow / 1.20  # relative to baseline 1.20
+        total_mult = mgmt_mult * area_scale * year_scale * tp_adjust
 
-        low_net    = bm_data["low_gross"]    * total_mult * (1 - buffer_pct/100)
-        medium_net = bm_data["medium_gross"] * total_mult * (1 - buffer_pct/100)
-        high_net   = bm_data["high_gross"]   * total_mult * (1 - buffer_pct/100)
         low_gross    = bm_data["low_gross"]    * total_mult
         medium_gross = bm_data["medium_gross"] * total_mult
         high_gross   = bm_data["high_gross"]   * total_mult
+        low_net    = low_gross    * (1 - buffer_pct/100)
+        medium_net = medium_gross * (1 - buffer_pct/100)
+        high_net   = high_gross   * (1 - buffer_pct/100)
 
         n_sp = bm_data["n_species"]
         tp_label = tp.get("label", "Standard planting")
@@ -1150,7 +1153,7 @@ if st.sidebar.button("Calculate Carbon Credits", type="primary") and total_pct =
                 st.write(f"**Above-ground biomass (AGB):** Calculated from species-specific allometric equations (Biomass = f(DBH))")
                 st.write(f"**Below-ground biomass (BGB):** Included via root-to-shoot ratio (RSR) - Total biomass = AGB x (1 + RSR)")
                 st.write(f"**RSR ({detected_region}):** {rsr_val} - {RSR_CITATION}")
-                st.write(f"**BGB carbon pool:** Fully accounted for in all sequestration estimates per VCS AR-ACM0003 requirements")
+                st.write(f"**BGB carbon pool:** Fully accounted for in all sequestration estimates per VCS VM0047 requirements")
                 st.write(f"**Uncertainty discount:** {mrvdiscount}% applied — " +
                              ("continuous drone/satellite MRV justifies 10% per VCS Uncertainty Policy v4" 
                               if use_managed_restoration else 

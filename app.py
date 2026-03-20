@@ -620,19 +620,21 @@ REGIONAL_BENCHMARKS_PRECOMPUTED = {
         "region": "boreal"
     },
     "deserts and xeric shrublands": {
-        "low_gross": 4600,
-        "medium_gross": 10599,
-        "high_gross": 15483,
+        "low_gross": 4888,
+        "medium_gross": 10565,
+        "high_gross": 14890,
         "low_species": [
             "Balanites aegyptiaca",
             "Acacia ehrenbergiana",
             "Acacia tortilis",
+            "Ziziphus lotus",
             "Ziziphus mauritiana",
             "Ziziphus spina-christi"
         ],
         "high_species": [
             "Retama raetam",
             "Haloxylon ammodendron",
+            "Parkinsonia aculeata",
             "Prosopis cineraria",
             "Prosopis juliflora",
             "Acacia nilotica"
@@ -641,87 +643,121 @@ REGIONAL_BENCHMARKS_PRECOMPUTED = {
             "Balanites aegyptiaca",
             "Acacia ehrenbergiana",
             "Acacia tortilis",
+            "Ziziphus lotus",
             "Ziziphus mauritiana",
             "Ziziphus spina-christi",
             "Faidherbia albida",
             "Maerua crassifolia",
             "Calligonum comosum",
+            "Argania spinosa",
+            "Sideroxylon spinosum",
             "Tamarix aphylla",
             "Haloxylon persicum",
             "Retama raetam",
             "Haloxylon ammodendron",
+            "Parkinsonia aculeata",
             "Prosopis cineraria",
             "Prosopis juliflora",
             "Acacia nilotica"
         ],
-        "n_species": 15,
+        "n_species": 19,
         "density": 700,
         "region": "desert"
     },
     "flooded grasslands and savannas": {
-        "low_gross": 65697,
-        "medium_gross": 108121,
-        "high_gross": 186773,
+        "low_gross": 31910,
+        "medium_gross": 75647,
+        "high_gross": 129334,
         "low_species": [
-            "Populus nigra"
+            "Vachellia xanthophloea",
+            "Taxodium distichum"
         ],
         "high_species": [
+            "Acacia stenophylla",
             "Melaleuca argentea"
         ],
         "all_species": [
+            "Vachellia xanthophloea",
+            "Taxodium distichum",
+            "Populus euphratica",
             "Populus nigra",
             "Acacia stenophylla",
             "Melaleuca argentea"
         ],
-        "n_species": 3,
+        "n_species": 6,
         "density": 900,
         "region": "flooded"
     },
     "mangroves": {
-        "low_gross": 36908,
-        "medium_gross": 96083,
-        "high_gross": 143915,
+        "low_gross": 43003,
+        "medium_gross": 83067,
+        "high_gross": 141227,
         "low_species": [
-            "Sonneratia alba"
+            "Sonneratia alba",
+            "Xylocarpus granatum"
         ],
         "high_species": [
+            "Bruguiera gymnorrhiza",
             "Ceriops tagal"
         ],
         "all_species": [
             "Sonneratia alba",
+            "Xylocarpus granatum",
             "Avicennia germinans",
+            "Avicennia officinalis",
             "Bruguiera gymnorrhiza",
             "Ceriops tagal"
         ],
-        "n_species": 4,
+        "n_species": 6,
         "density": 1200,
         "region": "mangrove"
     },
     "mediterranean forests": {
-        "low_gross": 16881,
-        "medium_gross": 65007,
-        "high_gross": 131997,
+        "low_gross": 17958,
+        "medium_gross": 55067,
+        "high_gross": 111238,
         "low_species": [
+            "Fraxinus angustifolia",
             "Fraxinus ornus",
+            "Vitex agnus-castus",
             "Juniperus thurifera",
+            "Pinus brutia",
+            "Pinus canariensis",
             "Pinus halepensis",
             "Pinus pinea",
-            "Pinus pinaster"
+            "Pinus pinaster",
+            "Tetraclinis articulata"
         ],
         "high_species": [
+            "Abies pinsapo",
+            "Quercus cerris",
+            "Quercus faginea",
             "Quercus ilex",
             "Quercus pubescens",
+            "Quercus rotundifolia",
             "Quercus suber",
+            "Cupressus atlantica",
             "Cedrus atlantica",
             "Cedrus libani"
         ],
         "all_species": [
+            "Fraxinus angustifolia",
             "Fraxinus ornus",
+            "Vitex agnus-castus",
             "Juniperus thurifera",
+            "Pinus brutia",
+            "Pinus canariensis",
             "Pinus halepensis",
             "Pinus pinea",
             "Pinus pinaster",
+            "Tetraclinis articulata",
+            "Nerium oleander",
+            "Pistacia atlantica",
+            "Myrtus communis",
             "Ceratonia siliqua",
+            "Phillyrea latifolia",
+            "Laurus nobilis",
+            "Olea europaea subsp. oleaster",
             "Olea europaea",
             "Pistacia lentiscus",
             "Arbutus unedo",
@@ -730,39 +766,50 @@ REGIONAL_BENCHMARKS_PRECOMPUTED = {
             "Quercus faginea",
             "Quercus ilex",
             "Quercus pubescens",
+            "Quercus rotundifolia",
             "Quercus suber",
+            "Cupressus atlantica",
             "Cedrus atlantica",
             "Cedrus libani"
         ],
-        "n_species": 17,
+        "n_species": 30,
         "density": 900,
         "region": "mediterranean"
     },
     "montane grasslands and shrublands": {
-        "low_gross": 9794,
-        "medium_gross": 16214,
-        "high_gross": 20874,
+        "low_gross": 9930,
+        "medium_gross": 16581,
+        "high_gross": 21937,
         "low_species": [
+            "Acacia abyssinica",
             "Prunus africana",
             "Alnus acuminata",
             "Rhododendron arboreum",
             "Juniperus procera",
+            "Ocotea usambarensis",
             "Podocarpus glomeratus"
         ],
         "high_species": [
+            "Gynoxys caracasana",
             "Polylepis racemosa",
             "Hypericum lanceolatum",
             "Olea europaea subsp. cuspidata",
             "Erica arborea",
+            "Cedrela montana",
             "Abies spectabilis"
         ],
         "all_species": [
+            "Acacia abyssinica",
             "Prunus africana",
             "Alnus acuminata",
             "Rhododendron arboreum",
             "Juniperus procera",
+            "Ocotea usambarensis",
             "Podocarpus glomeratus",
+            "Polylepis reticulata",
+            "Podocarpus oleifolius",
             "Hagenia abyssinica",
+            "Podocarpus falcatus",
             "Rapanea melanophloeos",
             "Polylepis australis",
             "Escallonia resinosa",
@@ -771,16 +818,17 @@ REGIONAL_BENCHMARKS_PRECOMPUTED = {
             "Hypericum lanceolatum",
             "Olea europaea subsp. cuspidata",
             "Erica arborea",
+            "Cedrela montana",
             "Abies spectabilis"
         ],
-        "n_species": 15,
+        "n_species": 21,
         "density": 900,
         "region": "montane"
     },
     "temperate broadleaf and mixed forests": {
-        "low_gross": 26874,
-        "medium_gross": 66100,
-        "high_gross": 117981,
+        "low_gross": 29690,
+        "medium_gross": 69412,
+        "high_gross": 120911,
         "low_species": [
             "Castanea sativa",
             "Juglans nigra",
@@ -789,15 +837,17 @@ REGIONAL_BENCHMARKS_PRECOMPUTED = {
             "Alnus incana",
             "Juglans regia",
             "Platanus occidentalis",
-            "Liquidambar styraciflua"
+            "Liquidambar styraciflua",
+            "Platanus orientalis"
         ],
         "high_species": [
-            "Tilia cordata",
-            "Ulmus glabra",
             "Ulmus laevis",
+            "Ulmus minor",
             "Fraxinus excelsior",
+            "Populus tremula",
             "Quercus petraea",
             "Quercus robur",
+            "Acer campestre",
             "Fagus sylvatica",
             "Robinia pseudoacacia"
         ],
@@ -819,15 +869,20 @@ REGIONAL_BENCHMARKS_PRECOMPUTED = {
             "Salix fragilis",
             "Alnus glutinosa",
             "Tilia cordata",
+            "Tilia platyphyllos",
+            "Carpinus betulus",
             "Ulmus glabra",
             "Ulmus laevis",
+            "Ulmus minor",
             "Fraxinus excelsior",
+            "Populus tremula",
             "Quercus petraea",
             "Quercus robur",
+            "Acer campestre",
             "Fagus sylvatica",
             "Robinia pseudoacacia"
         ],
-        "n_species": 24,
+        "n_species": 29,
         "density": 1000,
         "region": "temperate"
     },
@@ -858,30 +913,38 @@ REGIONAL_BENCHMARKS_PRECOMPUTED = {
         "region": "dry_tropical"
     },
     "tropical and subtropical grasslands": {
-        "low_gross": 5186,
-        "medium_gross": 34874,
-        "high_gross": 63540,
+        "low_gross": 5432,
+        "medium_gross": 30202,
+        "high_gross": 58244,
         "low_species": [
-            "Acacia senegal"
+            "Acacia senegal",
+            "Acacia polyacantha",
+            "Acacia seyal"
         ],
         "high_species": [
+            "Vitellaria paradoxa",
+            "Diospyros mespiliformis",
             "Combretum molle"
         ],
         "all_species": [
             "Acacia senegal",
+            "Acacia polyacantha",
+            "Acacia seyal",
             "Terminalia macroptera",
             "Sclerocarya birrea",
+            "Prosopis africana",
             "Vitellaria paradoxa",
+            "Diospyros mespiliformis",
             "Combretum molle"
         ],
-        "n_species": 5,
+        "n_species": 9,
         "density": 700,
         "region": "tropical_grassland"
     },
     "tropical and subtropical moist broadleaf forests": {
-        "low_gross": 66234,
-        "medium_gross": 153834,
-        "high_gross": 262139,
+        "low_gross": 67679,
+        "medium_gross": 156720,
+        "high_gross": 272099,
         "low_species": [
             "Dalbergia latifolia",
             "Dalbergia melanoxylon",
@@ -895,14 +958,15 @@ REGIONAL_BENCHMARKS_PRECOMPUTED = {
             "Spathodea campanulata",
             "Vitex doniana",
             "Acacia mearnsii",
+            "Entandrophragma cylindricum",
             "Moringa oleifera",
+            "Pericopsis elata",
             "Anadenanthera colubrina",
+            "Bertholletia excelsa",
             "Brownea macrophylla",
             "Schinus molle",
             "Mimusops elengi",
-            "Buchenavia tetraphylla",
-            "Dracontomelon dao",
-            "Milicia excelsa"
+            "Buchenavia tetraphylla"
         ],
         "high_species": [
             "Guarea guidonia",
@@ -924,6 +988,7 @@ REGIONAL_BENCHMARKS_PRECOMPUTED = {
             "Gmelina arborea",
             "Grevillea robusta",
             "Tectona grandis",
+            "Afzelia africana",
             "Terminalia ivorensis"
         ],
         "all_species": [
@@ -939,8 +1004,11 @@ REGIONAL_BENCHMARKS_PRECOMPUTED = {
             "Spathodea campanulata",
             "Vitex doniana",
             "Acacia mearnsii",
+            "Entandrophragma cylindricum",
             "Moringa oleifera",
+            "Pericopsis elata",
             "Anadenanthera colubrina",
+            "Bertholletia excelsa",
             "Brownea macrophylla",
             "Schinus molle",
             "Mimusops elengi",
@@ -986,9 +1054,10 @@ REGIONAL_BENCHMARKS_PRECOMPUTED = {
             "Gmelina arborea",
             "Grevillea robusta",
             "Tectona grandis",
+            "Afzelia africana",
             "Terminalia ivorensis"
         ],
-        "n_species": 60,
+        "n_species": 64,
         "density": 1100,
         "region": "tropical"
     }

@@ -306,59 +306,6 @@ def generate_pdf_report(area_ha, species_mix, gross_credits, buffer_pct,
 
     return bytes(pdf.output(dest="S"))
 
-# ── Regional benchmarks for Low / Medium / High estimates ────────────────────────
-REGIONAL_BENCHMARKS = {
-    "tropical and subtropical moist broadleaf forests": {
-        "low"   : {"species": "Terminalia superba",      "common": "Afara",               "density": 800,  "region": "tropical"},
-        "medium": {"species": "Cedrela odorata",         "common": "Spanish Cedar",        "density": 1000, "region": "tropical"},
-        "high"  : {"species": "Acacia mangium",          "common": "Mangium",              "density": 1200, "region": "tropical"},
-    },
-    "tropical and subtropical dry broadleaf forests": {
-        "low"   : {"species": "Colophospermum mopane",   "common": "Mopane",               "density": 800,  "region": "dry_tropical"},
-        "medium": {"species": "Tectona grandis",         "common": "Teak",                 "density": 1000, "region": "dry_tropical"},
-        "high"  : {"species": "Gmelina arborea",         "common": "Gmelina",              "density": 1200, "region": "tropical"},
-    },
-    "tropical and subtropical grasslands": {
-        "low"   : {"species": "Acacia senegal",          "common": "Gum Arabic",           "density": 600,  "region": "tropical_grassland"},
-        "medium": {"species": "Vitellaria paradoxa",     "common": "Shea Tree",            "density": 800,  "region": "tropical_grassland"},
-        "high"  : {"species": "Parkia biglobosa",        "common": "Locust Bean",          "density": 1000, "region": "tropical_grassland"},
-    },
-    "deserts and xeric shrublands": {
-        "low"   : {"species": "Acacia tortilis",         "common": "Umbrella Thorn",       "density": 600,  "region": "desert"},
-        "medium": {"species": "Ziziphus spina-christi",  "common": "Christ's Thorn",       "density": 800,  "region": "desert"},
-        "high"  : {"species": "Acacia nilotica",         "common": "Nile Acacia",          "density": 1000, "region": "desert"},
-    },
-    "mediterranean forests": {
-        "low"   : {"species": "Quercus ilex",            "common": "Holm Oak",             "density": 800,  "region": "mediterranean"},
-        "medium": {"species": "Pinus halepensis",        "common": "Aleppo Pine",          "density": 1000, "region": "mediterranean"},
-        "high"  : {"species": "Cedrus atlantica",        "common": "Atlas Cedar",          "density": 1100, "region": "mediterranean"},
-    },
-    "temperate broadleaf and mixed forests": {
-        "low"   : {"species": "Quercus robur",           "common": "English Oak",          "density": 800,  "region": "temperate"},
-        "medium": {"species": "Fagus sylvatica",         "common": "European Beech",       "density": 1000, "region": "temperate"},
-        "high"  : {"species": "Pinus sylvestris",        "common": "Scots Pine",           "density": 1200, "region": "temperate"},
-    },
-    "boreal forests/taiga": {
-        "low"   : {"species": "Abies balsamea",          "common": "Balsam Fir",           "density": 800,  "region": "boreal"},
-        "medium": {"species": "Picea abies",             "common": "Norway Spruce",        "density": 1000, "region": "boreal"},
-        "high"  : {"species": "Pinus sylvestris",        "common": "Scots Pine",           "density": 1200, "region": "boreal"},
-    },
-    "mangroves": {
-        "low"   : {"species": "Ceriops tagal",           "common": "Spurred Mangrove",     "density": 1000, "region": "mangrove"},
-        "medium": {"species": "Avicennia marina",        "common": "Grey Mangrove",        "density": 1200, "region": "mangrove"},
-        "high"  : {"species": "Rhizophora mangle",       "common": "Red Mangrove",         "density": 1500, "region": "mangrove"},
-    },
-    "montane grasslands and shrublands": {
-        "low"   : {"species": "Polylepis australis",     "common": "Queñoa",               "density": 800,  "region": "montane"},
-        "medium": {"species": "Alnus acuminata",         "common": "Andean Alder",         "density": 1000, "region": "montane"},
-        "high"  : {"species": "Juniperus procera",       "common": "African Pencil Cedar", "density": 1100, "region": "montane"},
-    },
-    "flooded grasslands and savannas": {
-        "low"   : {"species": "Salix alba",              "common": "White Willow",         "density": 800,  "region": "flooded"},
-        "medium": {"species": "Eucalyptus camaldulensis","common": "River Red Gum",        "density": 1000, "region": "flooded"},
-        "high"  : {"species": "Populus nigra",           "common": "Black Poplar",         "density": 1200, "region": "flooded"},
-    },
-}
 
 # ── App ────────────────────────────────────────────────────────────────────────
 st.title("🌳 VCS Reforestation Carbon Credit Estimator")
@@ -520,51 +467,469 @@ total_pct = sum(s["pct"] for s in st.session_state.species_list)
 if total_pct != 100:
     st.sidebar.warning(f"Mix = {total_pct}%. Must equal 100%.")
 
-# ── Regional estimate summary card ───────────────────────────────────────────
-eco_key    = st.session_state.ecoregion.lower().strip()
-benchmarks = REGIONAL_BENCHMARKS.get(eco_key)
-if benchmarks:
-    try:
-        tp_key  = terrapod_key or "seedball_outdoor"
-        tp      = TERRAPOD_UPLIFTS.get(tp_key, {})
-        tp_mort = tp.get("annual_mortality_mult", 1.0)
-        tp_grow = tp.get("dbh_growth_mult", 1.0)
-        tp_label= tp.get("label", "Standard planting")
-        mgmt_bm = {
-            "terrapod_growth_mult": tp_grow,
-            "irrigation": use_irrigation,
-            "nutrients" : use_nutrients,
-            "biochar"   : use_biochar,
-        }
-        bm_results = {}
-        for tier in ("low", "medium", "high"):
-            bm  = benchmarks[tier]
-            mix = [{"species_name": bm["species"], "common_name": bm["common"],
-                    "region": bm["region"], "pct": 100, "density": bm["density"]}]
-            r   = sim.simulate_project(
-                area_ha=area_ha, species_mix=mix,
-                project_years=project_years,
-                annual_mortality=0.04 * tp_mort,
-                management=mgmt_bm,
-            )
-            gross = r[-1]["co2e_gross_t"] + sum(x["soil_co2e_gross_t"] for x in r)
-            net   = gross * (1 - buffer_pct / 100)
-            bm_results[tier] = {"gross": gross, "net": net, "species": bm["common"]}
+# ── Regional estimate summary card (pre-computed mixed forest averages) ──────
+REGIONAL_BENCHMARKS_PRECOMPUTED = {
+    "boreal forests/taiga": {
+        "low_gross": 16899,
+        "medium_gross": 38562,
+        "high_gross": 70696,
+        "low_species": [
+            "Larix occidentalis",
+            "Picea sitchensis",
+            "Pinus contorta",
+            "Picea glauca",
+            "Picea mariana"
+        ],
+        "high_species": [
+            "Betula papyrifera",
+            "Populus tremuloides",
+            "Abies lasiocarpa",
+            "Betula pendula",
+            "Picea abies"
+        ],
+        "all_species": [
+            "Larix occidentalis",
+            "Picea sitchensis",
+            "Pinus contorta",
+            "Picea glauca",
+            "Picea mariana",
+            "Larix decidua",
+            "Larix kaempferi",
+            "Larix laricina",
+            "Larix sibirica",
+            "Abies balsamea",
+            "Pinus banksiana",
+            "Betula papyrifera",
+            "Populus tremuloides",
+            "Abies lasiocarpa",
+            "Betula pendula",
+            "Picea abies"
+        ],
+        "n_species": 16,
+        "density": 1000,
+        "region": "boreal"
+    },
+    "deserts and xeric shrublands": {
+        "low_gross": 4600,
+        "medium_gross": 10599,
+        "high_gross": 15483,
+        "low_species": [
+            "Balanites aegyptiaca",
+            "Acacia ehrenbergiana",
+            "Acacia tortilis",
+            "Ziziphus mauritiana",
+            "Ziziphus spina-christi"
+        ],
+        "high_species": [
+            "Retama raetam",
+            "Haloxylon ammodendron",
+            "Prosopis cineraria",
+            "Prosopis juliflora",
+            "Acacia nilotica"
+        ],
+        "all_species": [
+            "Balanites aegyptiaca",
+            "Acacia ehrenbergiana",
+            "Acacia tortilis",
+            "Ziziphus mauritiana",
+            "Ziziphus spina-christi",
+            "Faidherbia albida",
+            "Maerua crassifolia",
+            "Calligonum comosum",
+            "Tamarix aphylla",
+            "Haloxylon persicum",
+            "Retama raetam",
+            "Haloxylon ammodendron",
+            "Prosopis cineraria",
+            "Prosopis juliflora",
+            "Acacia nilotica"
+        ],
+        "n_species": 15,
+        "density": 700,
+        "region": "desert"
+    },
+    "flooded grasslands and savannas": {
+        "low_gross": 65697,
+        "medium_gross": 108121,
+        "high_gross": 186773,
+        "low_species": [
+            "Populus nigra"
+        ],
+        "high_species": [
+            "Melaleuca argentea"
+        ],
+        "all_species": [
+            "Populus nigra",
+            "Acacia stenophylla",
+            "Melaleuca argentea"
+        ],
+        "n_species": 3,
+        "density": 900,
+        "region": "flooded"
+    },
+    "mangroves": {
+        "low_gross": 36908,
+        "medium_gross": 96083,
+        "high_gross": 143915,
+        "low_species": [
+            "Sonneratia alba"
+        ],
+        "high_species": [
+            "Ceriops tagal"
+        ],
+        "all_species": [
+            "Sonneratia alba",
+            "Avicennia germinans",
+            "Bruguiera gymnorrhiza",
+            "Ceriops tagal"
+        ],
+        "n_species": 4,
+        "density": 1200,
+        "region": "mangrove"
+    },
+    "mediterranean forests": {
+        "low_gross": 16881,
+        "medium_gross": 66797,
+        "high_gross": 131997,
+        "low_species": [
+            "Fraxinus ornus",
+            "Juniperus thurifera",
+            "Pinus halepensis",
+            "Pinus pinea",
+            "Pinus pinaster"
+        ],
+        "high_species": [
+            "Quercus ilex",
+            "Quercus pubescens",
+            "Quercus suber",
+            "Cedrus atlantica",
+            "Cedrus libani"
+        ],
+        "all_species": [
+            "Fraxinus ornus",
+            "Juniperus thurifera",
+            "Pinus halepensis",
+            "Pinus pinea",
+            "Pinus pinaster",
+            "Ceratonia siliqua",
+            "Pistacia lentiscus",
+            "Arbutus unedo",
+            "Abies pinsapo",
+            "Quercus cerris",
+            "Quercus faginea",
+            "Quercus ilex",
+            "Quercus pubescens",
+            "Quercus suber",
+            "Cedrus atlantica",
+            "Cedrus libani"
+        ],
+        "n_species": 16,
+        "density": 900,
+        "region": "mediterranean"
+    },
+    "montane grasslands and shrublands": {
+        "low_gross": 9417,
+        "medium_gross": 16047,
+        "high_gross": 20831,
+        "low_species": [
+            "Prunus africana",
+            "Alnus acuminata",
+            "Rhododendron arboreum",
+            "Juniperus procera",
+            "Olea europaea subsp. cuspidata"
+        ],
+        "high_species": [
+            "Gynoxys caracasana",
+            "Polylepis racemosa",
+            "Hypericum lanceolatum",
+            "Erica arborea",
+            "Abies spectabilis"
+        ],
+        "all_species": [
+            "Prunus africana",
+            "Alnus acuminata",
+            "Rhododendron arboreum",
+            "Juniperus procera",
+            "Olea europaea subsp. cuspidata",
+            "Podocarpus glomeratus",
+            "Hagenia abyssinica",
+            "Rapanea melanophloeos",
+            "Polylepis australis",
+            "Escallonia resinosa",
+            "Gynoxys caracasana",
+            "Polylepis racemosa",
+            "Hypericum lanceolatum",
+            "Erica arborea",
+            "Abies spectabilis"
+        ],
+        "n_species": 15,
+        "density": 900,
+        "region": "montane"
+    },
+    "temperate broadleaf and mixed forests": {
+        "low_gross": 26874,
+        "medium_gross": 66100,
+        "high_gross": 117981,
+        "low_species": [
+            "Castanea sativa",
+            "Juglans nigra",
+            "Prunus avium",
+            "Prunus serotina",
+            "Alnus incana",
+            "Juglans regia",
+            "Platanus occidentalis",
+            "Liquidambar styraciflua"
+        ],
+        "high_species": [
+            "Tilia cordata",
+            "Ulmus glabra",
+            "Ulmus laevis",
+            "Fraxinus excelsior",
+            "Quercus petraea",
+            "Quercus robur",
+            "Fagus sylvatica",
+            "Robinia pseudoacacia"
+        ],
+        "all_species": [
+            "Castanea sativa",
+            "Juglans nigra",
+            "Prunus avium",
+            "Prunus serotina",
+            "Alnus incana",
+            "Juglans regia",
+            "Platanus occidentalis",
+            "Liquidambar styraciflua",
+            "Platanus orientalis",
+            "Celtis australis",
+            "Celtis occidentalis",
+            "Salix alba",
+            "Corylus avellana",
+            "Magnolia grandiflora",
+            "Salix fragilis",
+            "Alnus glutinosa",
+            "Tilia cordata",
+            "Ulmus glabra",
+            "Ulmus laevis",
+            "Fraxinus excelsior",
+            "Quercus petraea",
+            "Quercus robur",
+            "Fagus sylvatica",
+            "Robinia pseudoacacia"
+        ],
+        "n_species": 24,
+        "density": 1000,
+        "region": "temperate"
+    },
+    "tropical and subtropical dry broadleaf forests": {
+        "low_gross": 21916,
+        "medium_gross": 79294,
+        "high_gross": 149665,
+        "low_species": [
+            "Acacia catechu",
+            "Brachystegia spiciformis"
+        ],
+        "high_species": [
+            "Afzelia quanzensis",
+            "Terminalia arjuna"
+        ],
+        "all_species": [
+            "Acacia catechu",
+            "Brachystegia spiciformis",
+            "Julbernardia paniculata",
+            "Colophospermum mopane",
+            "Pterocarpus angolensis",
+            "Terminalia sericea",
+            "Afzelia quanzensis",
+            "Terminalia arjuna"
+        ],
+        "n_species": 8,
+        "density": 900,
+        "region": "dry_tropical"
+    },
+    "tropical and subtropical grasslands": {
+        "low_gross": 5186,
+        "medium_gross": 34874,
+        "high_gross": 63540,
+        "low_species": [
+            "Acacia senegal"
+        ],
+        "high_species": [
+            "Combretum molle"
+        ],
+        "all_species": [
+            "Acacia senegal",
+            "Terminalia macroptera",
+            "Sclerocarya birrea",
+            "Vitellaria paradoxa",
+            "Combretum molle"
+        ],
+        "n_species": 5,
+        "density": 700,
+        "region": "tropical_grassland"
+    },
+    "tropical and subtropical moist broadleaf forests": {
+        "low_gross": 66234,
+        "medium_gross": 153834,
+        "high_gross": 262139,
+        "low_species": [
+            "Dalbergia latifolia",
+            "Dalbergia melanoxylon",
+            "Dalbergia sissoo",
+            "Albizia adianthifolia",
+            "Cordia alliodora",
+            "Nephelium lappaceum",
+            "Archidendron pauciflorum",
+            "Dipterocarpus indicus",
+            "Dipterocarpus alatus",
+            "Spathodea campanulata",
+            "Vitex doniana",
+            "Acacia mearnsii",
+            "Moringa oleifera",
+            "Anadenanthera colubrina",
+            "Brownea macrophylla",
+            "Schinus molle",
+            "Mimusops elengi",
+            "Buchenavia tetraphylla",
+            "Dracontomelon dao",
+            "Milicia excelsa"
+        ],
+        "high_species": [
+            "Guarea guidonia",
+            "Hymenaea courbaril",
+            "Inga edulis",
+            "Inga feuilleei",
+            "Tabebuia rosea",
+            "Dipterocarpus costatus",
+            "Dipterocarpus grandiflorus",
+            "Dipterocarpus turbinatus",
+            "Elaeocarpus angustifolius",
+            "Araucaria cunninghamii",
+            "Araucaria heterophylla",
+            "Araucaria hunsteinii",
+            "Nauclea diderrichii",
+            "Terminalia superba",
+            "Cedrela odorata",
+            "Paulownia tomentosa",
+            "Gmelina arborea",
+            "Grevillea robusta",
+            "Tectona grandis",
+            "Terminalia ivorensis"
+        ],
+        "all_species": [
+            "Dalbergia latifolia",
+            "Dalbergia melanoxylon",
+            "Dalbergia sissoo",
+            "Albizia adianthifolia",
+            "Cordia alliodora",
+            "Nephelium lappaceum",
+            "Archidendron pauciflorum",
+            "Dipterocarpus indicus",
+            "Dipterocarpus alatus",
+            "Spathodea campanulata",
+            "Vitex doniana",
+            "Acacia mearnsii",
+            "Moringa oleifera",
+            "Anadenanthera colubrina",
+            "Brownea macrophylla",
+            "Schinus molle",
+            "Mimusops elengi",
+            "Buchenavia tetraphylla",
+            "Dracontomelon dao",
+            "Milicia excelsa",
+            "Toona ciliata",
+            "Lovoa trichilioides",
+            "Triplochiton scleroxylon",
+            "Jacaranda mimosifolia",
+            "Lophira alata",
+            "Manilkara zapota",
+            "Manilkara bidentata",
+            "Manilkara huberi",
+            "Khaya anthotheca",
+            "Khaya ivorensis",
+            "Khaya senegalensis",
+            "Agathis australis",
+            "Swietenia macrophylla",
+            "Swietenia mahagoni",
+            "Shorea robusta",
+            "Brosimum alicastrum",
+            "Cordia dichotoma",
+            "Cordia myxa",
+            "Enterolobium cyclocarpum",
+            "Eugenia uniflora",
+            "Guarea guidonia",
+            "Hymenaea courbaril",
+            "Inga edulis",
+            "Inga feuilleei",
+            "Tabebuia rosea",
+            "Dipterocarpus costatus",
+            "Dipterocarpus grandiflorus",
+            "Dipterocarpus turbinatus",
+            "Elaeocarpus angustifolius",
+            "Araucaria cunninghamii",
+            "Araucaria heterophylla",
+            "Araucaria hunsteinii",
+            "Nauclea diderrichii",
+            "Terminalia superba",
+            "Cedrela odorata",
+            "Paulownia tomentosa",
+            "Gmelina arborea",
+            "Grevillea robusta",
+            "Tectona grandis",
+            "Terminalia ivorensis"
+        ],
+        "n_species": 60,
+        "density": 1100,
+        "region": "tropical"
+    }
+}
 
-        st.subheader(f"📊 Regional Estimate — {st.session_state.ecoregion.title()}")
+eco_key = st.session_state.ecoregion.lower().strip()
+bm_data = REGIONAL_BENCHMARKS_PRECOMPUTED.get(eco_key)
+if bm_data:
+    try:
+        # Scale from 100ha baseline to actual area
+        area_scale    = area_ha / 100.0
+        # Scale from 40yr baseline to actual project years
+        year_scale    = project_years / 40.0
+        # Management uplift multiplier on top of TerraPod baseline
+        mgmt_mult = 1.0
+        if use_irrigation: mgmt_mult *= 1.15
+        if use_nutrients:  mgmt_mult *= 1.10
+        if use_biochar:    mgmt_mult *= 1.10
+        # TerraPod vs no TerraPod
+        tp      = TERRAPOD_UPLIFTS.get(terrapod_key or "seedball_outdoor", {})
+        tp_grow = tp.get("dbh_growth_mult", 1.20)
+        tp_mort = tp.get("annual_mortality_mult", 0.40)
+        # TerraPod baseline already baked into pre-computed numbers
+        # Additional management on top
+        total_mult = mgmt_mult * area_scale * year_scale
+
+        low_net    = bm_data["low_gross"]    * total_mult * (1 - buffer_pct/100)
+        medium_net = bm_data["medium_gross"] * total_mult * (1 - buffer_pct/100)
+        high_net   = bm_data["high_gross"]   * total_mult * (1 - buffer_pct/100)
+        low_gross    = bm_data["low_gross"]    * total_mult
+        medium_gross = bm_data["medium_gross"] * total_mult
+        high_gross   = bm_data["high_gross"]   * total_mult
+
+        n_sp = bm_data["n_species"]
+        tp_label = tp.get("label", "Standard planting")
+
+        st.subheader(f"📊 Mixed Forest Estimate — {st.session_state.ecoregion.title()}")
         st.caption(
             f"{area_ha:,} ha · {project_years} yr · {tp_label} · "
-            f"Representative species for this ecoregion"
+            f"Based on {n_sp} native species mix for this ecoregion · "
+            f"{bm_data['density']:,} stems/ha"
         )
         c1, c2, c3 = st.columns(3)
-        for col, tier, icon in [(c1,"low","🟡"),(c2,"medium","🟠"),(c3,"high","🟢")]:
-            d = bm_results[tier]
-            col.metric(
-                f"{icon} {tier.title()} — {d['species']}",
-                f"{d['net']:,.0f} tCO₂e net",
-                f"Gross: {d['gross']:,.0f}",
-            )
-        st.caption("Select specific species in the sidebar to refine this estimate ↑")
+        c1.metric("🟡 Low estimate",    f"{low_net:,.0f} tCO₂e net",    f"Gross: {low_gross:,.0f}")
+        c2.metric("🟠 Medium estimate", f"{medium_net:,.0f} tCO₂e net", f"Gross: {medium_gross:,.0f}")
+        c3.metric("🟢 High estimate",   f"{high_net:,.0f} tCO₂e net",   f"Gross: {high_gross:,.0f}")
+        st.caption(
+            f"Low = average of slowest-growing native species mix · "
+            f"Medium = full native species mix average · "
+            f"High = average of fastest-growing native species mix · "
+            f"Select specific species below to refine ↓"
+        )
         st.divider()
     except Exception as _e:
         st.caption(f"Regional estimate unavailable: {_e}")

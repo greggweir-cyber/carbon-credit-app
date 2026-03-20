@@ -28,6 +28,9 @@ RSR = {"tropical": 0.235, "temperate": 0.192, "boreal": 0.390}
 RSR_DEFAULT = 0.235
 RSR_CITATION = "IPCC 2019 Refinement Vol.4 Ch.4 Table 4.4"
 
+# Minimum plausible AGB at DBH=10cm — filters out equations fitted to seedlings only
+AGB_SANITY_MIN_KG = 3.0   # anything below this at DBH=10 is rejected
+
 FAST_SPECIES = {
     "Acacia mangium","Acacia mearnsii","Eucalyptus grandis",
     "Eucalyptus camaldulensis","Eucalyptus tereticornis","Eucalyptus deglupta",
@@ -83,7 +86,9 @@ def _eval_formula(equation: str, output_tr: str, unit_y: str, dbh: float):
             result /= 1000.0
         elif uy == 'mg':          # Mg = Megagram = tonne
             result *= 1000.0
-        return result if result > 0 and math.isfinite(result) else None
+        if result <= 0 or not math.isfinite(result):
+            return None
+        return result
     except Exception:
         return None
 
@@ -280,15 +285,69 @@ class CarbonCreditSimulator:
     def calculate_agb_kg(self, dbh_cm: float, species: str, region: str) -> float:
         """Return above-ground biomass in kg for one tree."""
         dbh = max(float(dbh_cm), 0.5)
-        tier, rec = self._get_species_rec(species, region)
-        if tier == "globallometree":
+        sp  = " ".join(str(species).strip().split())
+        rg  = str(region).strip().lower()
+
+        # Sanity threshold: at DBH=10, a tree should weigh at least AGB_SANITY_MIN_KG
+        # This filters equations fitted only to seedlings or saplings
+        def _sane(val):
+            if val is None or val <= 0: return False
+            if dbh >= 10.0 and val < AGB_SANITY_MIN_KG: return False
+            return True
+
+        def _monotonic(rec_g):
+            """Check equation is monotonically increasing: AGB(30) > AGB(10)*2"""
+            try:
+                v10 = _eval_formula(rec_g['equation'], rec_g['output_tr'], rec_g['unit_y'], 10.0)
+                v30 = _eval_formula(rec_g['equation'], rec_g['output_tr'], rec_g['unit_y'], 30.0)
+                if v10 is None or v30 is None: return False
+                return v30 > v10 * 1.5  # AGB at DBH=30 must be >1.5x AGB at DBH=10
+            except:
+                return False
+
+        # Tier 1: GlobAllomeTree exact match
+        rec = self.globallometree.get(sp)
+        if rec and _monotonic(rec):
             val = _eval_formula(rec['equation'], rec['output_tr'], rec['unit_y'], dbh)
-            if val: return val
-        if tier in ("globallometree", "simple"):
-            if tier == "simple":
-                return max(float(rec["a"] * (dbh ** rec["b"])), 0.01)
-        # default
-        a, b = rec
+            if _sane(val): return val
+
+        # Tier 1: GlobAllomeTree genus match (only same-region genus)
+        genus = sp.split()[0] if sp else ""
+        if genus:
+            # Only use genus fallback if same region — avoids tropical equations on desert species
+            for csp, r in self.globallometree.items():
+                if csp.startswith(genus + " ") and r.get('region','') == rg and _monotonic(r):
+                    val = _eval_formula(r['equation'], r['output_tr'], r['unit_y'], dbh)
+                    if _sane(val): return val
+            # For non-tropical regions, stop here — don't cross-apply tropical genus equations
+            if rg not in ("tropical", "dry_tropical", "tropical_grassland", "mangrove", "flooded"):
+                pass  # Fall through to Tier 2
+            else:
+                # Tropical regions: allow cross-genus fallback
+                for csp, r in self.globallometree.items():
+                    if csp.startswith(genus + " ") and _monotonic(r):
+                        val = _eval_formula(r['equation'], r['output_tr'], r['unit_y'], dbh)
+                        if _sane(val): return val
+
+        # Tier 2: simple allometric exact match
+        s = self.simple_cache.get(sp)
+        if s:
+            val = s["a"] * (dbh ** s["b"])
+            if val > 0: return float(val)
+
+        # Tier 2: simple allometric genus match
+        if genus:
+            for csp, s in self.simple_cache.items():
+                if csp.startswith(genus + " "):
+                    val = s["a"] * (dbh ** s["b"])
+                    if val > 0: return float(val)
+
+        # Tier 3: IPCC 2019 regional default
+        defaults = {"tropical":(0.0509,2.50),"temperate":(0.065,2.38),"boreal":(0.085,2.32),
+                    "desert":(0.048,2.41),"dry_tropical":(0.050,2.40),"mediterranean":(0.065,2.35),
+                    "montane":(0.060,2.38),"mangrove":(0.055,2.42),"flooded":(0.058,2.40),
+                    "tropical_grassland":(0.048,2.41)}
+        a, b = defaults.get(rg, defaults["tropical"])
         return max(a * (dbh ** b), 0.01)
 
     def get_equation_info(self, species: str) -> dict:
@@ -368,15 +427,29 @@ class CarbonCreditSimulator:
 
         if rg == "tropical":
             base = 20.0 if fast else 12.0   # IPCC 2019 Table 4.11
+        elif rg in ("dry_tropical", "tropical_grassland"):
+            base = 14.0 if fast else 8.0    # Tropical dry — slower than moist
+        elif rg == "desert":
+            base = 8.0 if fast else 5.0     # Arid species — slow growth
+        elif rg == "mediterranean":
+            base = 10.0 if fast else 7.0    # Mediterranean
+        elif rg == "montane":
+            base = 8.0 if fast else 5.0     # High-altitude — slow
+        elif rg in ("mangrove", "flooded"):
+            base = 10.0 if fast else 7.0    # Wetland species
         elif rg == "temperate":
             base = 10.0 if fast else 8.0    # IPCC 2019 Table 4.9
-        else:  # boreal
+        else:  # boreal and unknown
             base = 7.0 if fast else 5.0     # IPCC 2019 Table 4.9
 
         mult = 1.0
         if management.get("irrigation"):  mult *= 1.15  # IPCC 2019 §2.3.2
         if management.get("nutrients"):   mult *= 1.10  # IPCC 2019
         if management.get("biochar"):     mult *= 1.10  # Jeffery et al. 2017
+        # TerraPod technology growth uplift (ISB/EAD/ICBA trial, UAE Nov 2024)
+        tp_mult = management.get("terrapod_growth_mult", 1.0)
+        if tp_mult and float(tp_mult) > 1.0:
+            mult *= float(tp_mult)
 
         return base * mult
 
@@ -402,13 +475,19 @@ class CarbonCreditSimulator:
             management = {}
 
         # ── Initialise tree cohorts ──────────────────────────────────────────
+        # Cap simulation at 1000ha equivalent to avoid memory crash on large projects
+        # Results are scaled up proportionally
+        MAX_SIM_HA  = 1000.0
+        sim_area_ha = min(float(area_ha), MAX_SIM_HA)
+        area_scale  = float(area_ha) / sim_area_ha
+
         cohorts = []
         for mix in species_mix:
             sp      = mix["species_name"]
             region  = mix["region"]
             density = mix["density"]
             pct     = mix["pct"] / 100.0
-            n_trees = int(area_ha * density * pct)
+            n_trees = int(sim_area_ha * density * pct)
             if n_trees <= 0:
                 continue
             cohorts.append({
@@ -421,10 +500,10 @@ class CarbonCreditSimulator:
         # ── Soil carbon ──────────────────────────────────────────────────────
         primary_region = species_mix[0]["region"] if species_mix else "tropical"
         soil_result = self.estimate_soil_carbon(
-            area_ha, primary_region, project_years,
+            sim_area_ha, primary_region, project_years,
             biochar=management.get("biochar", False)
         )
-        annual_soil_co2e = soil_result["annual_co2e"]
+        annual_soil_co2e = soil_result["annual_co2e"]  # will be scaled with area_scale
 
         # ── Survival multipliers ─────────────────────────────────────────────
         # Weed control +5%, fencing +7% (documented management actions)
@@ -489,8 +568,15 @@ class CarbonCreditSimulator:
                         elif tr in ('log10',): result = 10.0 ** result
                         if uy == 'g': result = result / 1000.0
                         elif uy == 'mg': result = result * 1000.0
+                        # Sanity check: median value per tree should be plausible
+                        med = float(np.median(result[result > 0])) if np.any(result > 0) else 0
+                        ref_dbh = float(np.median(dbh_arr))
+                        expected_min = AGB_SANITY_MIN_KG * (ref_dbh / 10.0) ** 2
+                        if med < expected_min * 0.1:
+                            raise ValueError("Implausibly low — fall through")
                         agb_kg = float(np.sum(result))
                     except:
+                        # Fall back to per-tree calculation with sanity checks
                         agb_kg = float(np.sum([self.calculate_agb_kg(d, sp, rg) for d in dbh_arr]))
                 else:
                     # Tier 2/3: use memoized lookup
@@ -507,11 +593,11 @@ class CarbonCreditSimulator:
 
             yearly_results.append({
                 "year"              : year,
-                "trees_total"       : sum(c["count"] for c in cohorts),
-                "biomass_t"         : round(total_biomass_kg / 1000.0, 2),
-                "carbon_t"          : round(carbon_t, 2),
-                "co2e_gross_t"      : round(co2e_gross, 2),
-                "soil_co2e_gross_t" : round(annual_soil_co2e, 2),
+                "trees_total"       : round(sum(c["count"] for c in cohorts) * area_scale),
+                "biomass_t"         : round(total_biomass_kg / 1000.0 * area_scale, 2),
+                "carbon_t"          : round(carbon_t * area_scale, 2),
+                "co2e_gross_t"      : round(co2e_gross * area_scale, 2),
+                "soil_co2e_gross_t" : round(annual_soil_co2e * area_scale, 2),
                 "equation_tiers"    : eq_tiers,
             })
 

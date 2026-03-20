@@ -470,9 +470,8 @@ if use_managed_restoration:
         "Irrigation weaned off at Year 4\n"
         "Continuous drone & satellite MRV (40yr)"
     )
-    mrvdiscount = 10  # continuous MRV justifies 10% vs 20%
 else:
-    mrvdiscount = 20
+    pass
 
 st.sidebar.subheader("TerraPod Technology")
 st.sidebar.caption("ISB planting technology — EAD/ICBA certified trial, UAE Nov 2024")
@@ -1092,19 +1091,19 @@ if st.sidebar.button("Calculate Carbon Credits", type="primary") and total_pct =
             gross_total   = gross_biomass + gross_soil
             buffer_held   = gross_total * (buffer_pct / 100.0)
             net_total     = gross_total * (1 - buffer_pct / 100.0)
-            net_vcs       = net_total * (1 - mrvdiscount / 100.0)
+            net_vcs       = net_total
 
             audit = sim.get_audit_trail(
                 species_mix, management, area_ha, project_years, mortality, buffer_pct
             )
 
-            st.success(f"Estimated Net VCUs (after {buffer_pct}% buffer + {mrvdiscount}% MRV discount): **{net_vcs:,.0f} tCO2e**")
+            st.success(f"Estimated Net VCUs (after {buffer_pct}% buffer): **{net_vcs:,.0f} tCO2e**")
 
             col1, col2, col3, col4 = st.columns(4)
             col1.metric("Gross tCO2e",              f"{gross_total:,.0f}")
             col2.metric("Buffer held",               f"{buffer_held:,.0f}")
             col3.metric("Net (pre-discount)",         f"{net_total:,.0f}")
-            col4.metric(f"Net VCUs (-{mrvdiscount}% MRV)", f"{net_vcs:,.0f}")
+            col4.metric("Net VCUs (after buffer)", f"{net_vcs:,.0f}")
 
             if active_uplifts:
                 st.info(f"Management uplifts: {' | '.join(active_uplifts)}")
@@ -1154,10 +1153,7 @@ if st.sidebar.button("Calculate Carbon Credits", type="primary") and total_pct =
                 st.write(f"**Below-ground biomass (BGB):** Included via root-to-shoot ratio (RSR) - Total biomass = AGB x (1 + RSR)")
                 st.write(f"**RSR ({detected_region}):** {rsr_val} - {RSR_CITATION}")
                 st.write(f"**BGB carbon pool:** Fully accounted for in all sequestration estimates per VCS VM0047 requirements")
-                st.write(f"**Uncertainty discount:** {mrvdiscount}% applied — " +
-                             ("continuous drone/satellite MRV justifies 10% per VCS Uncertainty Policy v4" 
-                              if use_managed_restoration else 
-                              "standard 20% per VCS Uncertainty & Variance Policy v4"))
+                st.write("**Uncertainty discount:** Not applied — project shows full potential before VCS uncertainty deductions. Apply 10-20% per VCS Uncertainty & Variance Policy v4 at submission.")
                 if use_managed_restoration:
                     st.write("**Managed restoration protocol:**")
                     st.write("- Yrs 1-2: 0% net mortality — immediate replanting, 100% survival maintained")
